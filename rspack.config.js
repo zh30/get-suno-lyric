@@ -6,9 +6,9 @@ const rspack = require('@rspack/core');
 
 module.exports = (env, argv) => defineConfig({
   entry: {
-    popup: './src/popup/popup.tsx',
-    sidePanel: './src/sidePanel/sidePanel.tsx',
-    background: './src/scripts/background.ts',
+    // popup: './src/popup/popup.tsx',
+    // sidePanel: './src/sidePanel/sidePanel.tsx',
+    // background: './src/scripts/background.ts',
     contentScript: './src/scripts/contentScript.ts',
   },
   output: {
@@ -56,21 +56,21 @@ module.exports = (env, argv) => defineConfig({
     ],
   },
   plugins: [
-    new rspack.CssExtractRspackPlugin({
-      filename: '[name].css',
-    }),
-    new rspack.HtmlRspackPlugin({
-      template: './src/popup/popup.html',
-      filename: 'popup.html',
-      chunks: ['popup'],
-      minify: true,
-    }),
-    new rspack.HtmlRspackPlugin({
-      template: './src/sidePanel/sidePanel.html',
-      filename: 'sidePanel.html',
-      chunks: ['sidePanel'],
-      minify: true,
-    }),
+    // new rspack.CssExtractRspackPlugin({
+    //   filename: '[name].css',
+    // }),
+    // new rspack.HtmlRspackPlugin({
+    //   template: './src/popup/popup.html',
+    //   filename: 'popup.html',
+    //   chunks: ['popup'],
+    //   minify: true,
+    // }),
+    // new rspack.HtmlRspackPlugin({
+    //   template: './src/sidePanel/sidePanel.html',
+    //   filename: 'sidePanel.html',
+    //   chunks: ['sidePanel'],
+    //   minify: true,
+    // }),
     new rspack.CopyRspackPlugin({
       patterns: [
         { from: 'public', to: 'public' },

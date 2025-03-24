@@ -1,10 +1,30 @@
 {
   "extension_name": {
-    "message": "小小头盔",
+    "message": "Suno 歌词下载器",
     "description": "The name of the extension"
   },
   "extension_description": {
-    "message": "一个增强开发体验的小型浏览器扩展。",
+    "message": "一个下载 Suno 歌词的小型浏览器扩展。",
     "description": "The description of the extension"
+  },
+  "download_lyric": {
+    "message": "下载 $type$ 歌词",
+    "description": "The description of the extension",
+    "placeholders": {
+      "type": {
+        "content": "$1",
+        "example": "LRC"
+      }
+    }
+  },
+  "toggle_type": {
+    "message": "切换到 $type$ 格式",
+    "description": "The description of the extension",
+    "placeholders": {
+      "type": {
+        "content": "$1",
+        "example": "LRC"
+      }
+    }
   }
 }

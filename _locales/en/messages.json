@@ -1,10 +1,30 @@
 {
   "extension_name": {
-    "message": "TinyHelmet",
+    "message": "Suno Lyric Downloader",
     "description": "The name of the extension"
   },
   "extension_description": {
-    "message": "A tiny browser extension to enhance your development experience.",
+    "message": "A tiny browser extension to download suno lyric.",
     "description": "The description of the extension"
+  },
+  "download_lyric": {
+    "message": "Download $type$ lyric",
+    "description": "The description of the extension",
+    "placeholders": {
+      "type": {
+        "content": "$1",
+        "example": "LRC"
+      }
+    }
+  },
+  "toggle_type": {
+    "message": "Switch to $type$ format",
+    "description": "The description of the extension",
+    "placeholders": {
+      "type": {
+        "content": "$1",
+        "example": "LRC"
+      }
+    }
   }
 }
