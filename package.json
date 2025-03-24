@@ -1,0 +1,38 @@
+{
+  "name": "tiny-helmet",
+  "version": "0.0.2",
+  "description": "A tiny browser extension to enhance your development experience",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "tsc": "tsc",
+    "dev": "rspack build --watch",
+    "build": "rspack build --mode production"
+  },
+  "keywords": [
+    "browser",
+    "extension",
+    "chrome"
+  ],
+  "author": "zhanghe.dev",
+  "license": "MIT",
+  "packageManager": "pnpm@9.15.1+sha512.1acb565e6193efbebda772702950469150cf12bcc764262e7587e71d19dc98a423dff9536e57ea44c49bdf790ff694e83c27be5faa23d67e0c033b583be4bfcf",
+  "devDependencies": {
+    "@rspack/cli": "^1.1.8",
+    "@rspack/core": "^1.1.8",
+    "@tailwindcss/postcss": "^4.0.12",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "chrome-types": "^0.1.327",
+    "css-loader": "^7.1.2",
+    "postcss": "^8.4.49",
+    "postcss-loader": "^8.1.1",
+    "tailwindcss": "^4.0.12",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}
