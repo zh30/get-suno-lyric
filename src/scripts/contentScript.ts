@@ -76,7 +76,6 @@ async function fetchAlignedWords(
 
     const data: ApiResponse = await response.json();
     if (data?.aligned_words?.length) {
-      console.log(`Successfully fetched ${data.aligned_words.length} aligned words`);
       return data.aligned_words;
     } else {
       console.error('No aligned words found in the response.');
@@ -135,8 +134,6 @@ function addButtons(imageSrc: string, alignedWords: AlignedWord[], config: Confi
     console.warn(`No images found matching selector for song ID: ${imageSrc}`);
     return;
   }
-
-  console.log(`Found ${imageElements.length} matching image(s) for: ${imageSrc}`);
 
   imageElements.forEach((imageElement, index) => {
     const parent = imageElement.parentElement;
@@ -202,8 +199,6 @@ function addButtons(imageSrc: string, alignedWords: AlignedWord[], config: Confi
     toolsBox.appendChild(toggleButton);
     toolsBox.appendChild(downloadButton);
     parent.appendChild(toolsBox);
-
-    console.log(`Added buttons to image ${index}`);
   });
 }
 
