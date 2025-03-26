@@ -1,6 +1,6 @@
 {
   "name": "get-suno-lyric",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "A tiny browser extension to get suno lyric",
   "main": "index.js",
   "scripts": {
@@ -21,14 +21,14 @@
   "devDependencies": {
     "@rspack/cli": "^1.2.8",
     "@rspack/core": "^1.2.8",
-    "@tailwindcss/postcss": "^4.0.15",
+    "@tailwindcss/postcss": "^4.0.16",
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.4",
     "chrome-types": "^0.1.345",
     "css-loader": "^7.1.2",
     "postcss": "^8.5.3",
     "postcss-loader": "^8.1.1",
-    "tailwindcss": "^4.0.15",
+    "tailwindcss": "^4.0.16",
     "ts-loader": "^9.5.2",
     "typescript": "^5.8.2"
   },
