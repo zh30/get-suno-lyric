@@ -8,7 +8,7 @@ module.exports = (env, argv) => defineConfig({
   entry: {
     // popup: './src/popup/popup.tsx',
     // sidePanel: './src/sidePanel/sidePanel.tsx',
-    // background: './src/scripts/background.ts',
+    background: './src/scripts/background.ts',
     contentScript: './src/scripts/contentScript.ts',
   },
   output: {

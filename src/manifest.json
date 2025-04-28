@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extension_name__",
-  "version": "0.0.3",
+  "version": "1.0.1",
   "description": "__MSG_extension_description__",
   "minimum_chrome_version": "114",
   "default_locale": "en",
@@ -14,10 +14,13 @@
   "action": {
     "default_title": "__MSG_extension_name__"
   },
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": [
-        "https://suno.com/song/*"
+        "https://suno.com/*"
       ],
       "js": [
         "contentScript.js"
@@ -25,6 +28,6 @@
     }
   ],
   "host_permissions": [
-    "https://suno.com/song/*"
+    "https://suno.com/*"
   ]
 }

@@ -1,34 +1,34 @@
-const ZHANGHE_ORIGIN = 'https://zhanghe.dev';
+// 监听标签页 URL 变化
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  // 只有当 URL 变化时才处理
+  if (changeInfo.url) {
+    const url = new URL(changeInfo.url);
 
-chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
-  if (!tab.url) return;
-  const url = new URL(tab.url);
-  console.info("tabs.onUpdated", url.origin);
+    // 检查 URL 是否匹配歌曲详情页模式
+    if (url.pathname.startsWith('/song/')) {
+      console.info("URL changed to song page:", url.pathname);
 
-  if (url.origin === ZHANGHE_ORIGIN) {
-    console.info("tabs.onUpdated", "enabling side panel");
-    chrome.sidePanel.setOptions({
-      tabId,
-      path: 'sidePanel.html',
-      enabled: true
-    }).catch((error) => {
-      console.error("Error enabling side panel:", error);
-    });
-  } else {
-    console.info("tabs.onUpdated", "disabling side panel");
-    chrome.sidePanel.setOptions({
-      tabId,
-      enabled: false
-    }).catch((error) => {
-      console.error("Error disabling side panel:", error);
-    });
+      // 向内容脚本发送消息，通知 URL 已变化到歌曲页面
+      chrome.tabs.sendMessage(tabId, {
+        action: "URL_CHANGED",
+        url: changeInfo.url,
+        songId: url.pathname.split('/').pop()
+      }).catch(error => {
+        // 如果内容脚本尚未加载，这个错误是正常的，可以忽略
+        console.debug("Could not send message to content script:", error);
+      });
+    }
   }
 });
 
+// 处理扩展图标点击事件
 chrome.action.onClicked.addListener((tab) => {
-  chrome.sidePanel.setPanelBehavior({
-    openPanelOnActionClick: true,
-  }).catch((error) => {
-    console.error("action.onClicked", error);
-  });
+  if (tab.url && tab.url.includes('suno.com/song/')) {
+    // 如果当前在歌曲页面，向内容脚本发送消息，手动触发功能
+    chrome.tabs.sendMessage(tab.id!, {
+      action: "MANUALLY_TRIGGER"
+    }).catch(error => {
+      console.error("Error sending manual trigger message:", error);
+    });
+  }
 });

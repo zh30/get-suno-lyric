@@ -246,7 +246,7 @@ function getSongIdFromUrl(): string {
 }
 
 // Main application
-function main(): void {
+function main() {
   // Create a configuration object with defaults
   const config: Config = { ...DEFAULT_CONFIG };
 
@@ -279,5 +279,31 @@ function main(): void {
   }
 }
 
-// Start the application when the DOM is loaded
-setTimeout(function () { main(); }, 3000);
+// 处理来自background.js的消息
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log("Content script received message:", message);
+
+  if (message.action === "URL_CHANGED" && message.songId) {
+    console.log("URL changed to song page with ID:", message.songId);
+    // 当URL变化到歌曲页面时，执行主函数
+    // 等待一段时间让页面完全加载
+    setTimeout(() => {
+      main();
+    }, 1000);
+  } else if (message.action === "MANUALLY_TRIGGER") {
+    console.log("Manual trigger received");
+    // 手动触发时执行主函数
+    main();
+  }
+
+  // 必须返回true以支持异步响应
+  return true;
+});
+
+// 在页面加载时执行一次，处理直接访问的情况
+setTimeout(function () {
+  // 检查当前URL是否是歌曲页面
+  if (window.location.pathname.startsWith('/song/')) {
+    main();
+  }
+}, 3000);
