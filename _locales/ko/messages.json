@@ -1,15 +1,15 @@
 {
   "extension_name": {
-    "message": "Suno 歌词下载器",
+    "message": "Suno 가사 다운로더",
     "description": "The name of the extension"
   },
   "extension_description": {
-    "message": "一个从 Suno.com 下载同步歌词的 Chrome 浏览器扩展，支持 LRC 和 SRT 格式。",
+    "message": "Suno.com에서 LRC 또는 SRT 형식의 동기화된 가사를 다운로드하는 Chrome 확장 프로그램.",
     "description": "The description of the extension"
   },
   "download_lyric": {
-    "message": "下载 $type$ 歌词",
-    "description": "同步歌词下载按钮文本",
+    "message": "$type$ 가사 다운로드",
+    "description": "동기화된 가사 다운로드 버튼 텍스트",
     "placeholders": {
       "type": {
         "content": "$1",
@@ -18,8 +18,8 @@
     }
   },
   "toggle_type": {
-    "message": "切换到 $type$ 格式",
-    "description": "格式切换按钮文本",
+    "message": "$type$ 형식으로 전환",
+    "description": "형식 전환 버튼 텍스트",
     "placeholders": {
       "type": {
         "content": "$1",

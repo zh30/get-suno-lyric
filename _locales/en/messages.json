@@ -4,12 +4,12 @@
     "description": "The name of the extension"
   },
   "extension_description": {
-    "message": "A tiny browser extension to download suno lyric.",
+    "message": "A Chrome browser extension that downloads synchronized lyrics from Suno.com in LRC or SRT formats.",
     "description": "The description of the extension"
   },
   "download_lyric": {
-    "message": "Download $type$ lyric",
-    "description": "The description of the extension",
+    "message": "Download $type$ Lyrics",
+    "description": "Download button text for synchronized lyrics",
     "placeholders": {
       "type": {
         "content": "$1",
@@ -18,8 +18,8 @@
     }
   },
   "toggle_type": {
-    "message": "Switch to $type$ format",
-    "description": "The description of the extension",
+    "message": "Switch to $type$ Format",
+    "description": "Toggle format button text",
     "placeholders": {
       "type": {
         "content": "$1",

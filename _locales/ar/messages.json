@@ -1,0 +1,30 @@
+{
+  "extension_name": {
+    "message": "محمل كلمات أغاني Suno",
+    "description": "The name of the extension"
+  },
+  "extension_description": {
+    "message": "امتداد Chrome يقوم بتنزيل كلمات الأغاني المتزامنة من Suno.com بتنسيقات LRC أو SRT.",
+    "description": "The description of the extension"
+  },
+  "download_lyric": {
+    "message": "تنزيل كلمات $type$",
+    "description": "نص زر التنزيل لكلمات الأغاني المتزامنة",
+    "placeholders": {
+      "type": {
+        "content": "$1",
+        "example": "LRC"
+      }
+    }
+  },
+  "toggle_type": {
+    "message": "التبديل إلى تنسيق $type$",
+    "description": "نص زر تبديل التنسيق",
+    "placeholders": {
+      "type": {
+        "content": "$1",
+        "example": "LRC"
+      }
+    }
+  }
+}

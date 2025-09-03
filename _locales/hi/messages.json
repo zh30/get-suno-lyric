@@ -1,0 +1,30 @@
+{
+  "extension_name": {
+    "message": "सुनो गीत डाउनलोडर",
+    "description": "The name of the extension"
+  },
+  "extension_description": {
+    "message": "Suno.com से LRC या SRT प्रारूपों में सिंक्रनाइज़्ड गीत डाउनलोड करने वाला क्रोम एक्सटेंशन।",
+    "description": "The description of the extension"
+  },
+  "download_lyric": {
+    "message": "$type$ गीत डाउनलोड करें",
+    "description": "सिंक्रनाइज़्ड गीत डाउनलोड बटन टेक्स्ट",
+    "placeholders": {
+      "type": {
+        "content": "$1",
+        "example": "LRC"
+      }
+    }
+  },
+  "toggle_type": {
+    "message": "$type$ प्रारूप पर स्विच करें",
+    "description": "प्रारूप स्विच बटन टेक्स्ट",
+    "placeholders": {
+      "type": {
+        "content": "$1",
+        "example": "LRC"
+      }
+    }
+  }
+}

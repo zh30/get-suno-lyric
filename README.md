@@ -7,7 +7,7 @@ A Chrome browser extension that downloads synchronized lyrics from Suno.com in L
 - 🎵 **Automatic Detection**: Automatically detects Suno song pages and adds download buttons
 - 📝 **Multiple Formats**: Download lyrics in LRC or SRT formats with format switching
 - 🔐 **Secure Authentication**: Uses your existing Suno session cookie for API access
-- 🌐 **Multi-language Support**: Available in English and Chinese
+- 🌐 **Multi-language Support**: Available in 12 languages including English, Chinese, Spanish, French, German, Japanese, Korean, Portuguese, Russian, Italian, Arabic, and Hindi
 - 🚀 **Fast & Lightweight**: Built with TypeScript and Rspack for optimal performance
 - 🎯 **Precise Timing**: Downloads word-level synchronized lyrics with accurate timestamps
 

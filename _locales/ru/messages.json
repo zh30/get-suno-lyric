@@ -1,0 +1,30 @@
+{
+  "extension_name": {
+    "message": "Загрузчик текстов песен Suno",
+    "description": "The name of the extension"
+  },
+  "extension_description": {
+    "message": "Расширение Chrome, которое загружает синхронизированные тексты песен с Suno.com в форматах LRC или SRT.",
+    "description": "The description of the extension"
+  },
+  "download_lyric": {
+    "message": "Скачать Тексты $type$",
+    "description": "Текст кнопки загрузки синхронизированных текстов песен",
+    "placeholders": {
+      "type": {
+        "content": "$1",
+        "example": "LRC"
+      }
+    }
+  },
+  "toggle_type": {
+    "message": "Переключить на Формат $type$",
+    "description": "Текст кнопки переключения формата",
+    "placeholders": {
+      "type": {
+        "content": "$1",
+        "example": "LRC"
+      }
+    }
+  }
+}

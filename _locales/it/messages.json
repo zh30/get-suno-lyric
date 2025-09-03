@@ -1,15 +1,15 @@
 {
   "extension_name": {
-    "message": "Suno 歌词下载器",
+    "message": "Scaricatore Testi Suno",
     "description": "The name of the extension"
   },
   "extension_description": {
-    "message": "一个从 Suno.com 下载同步歌词的 Chrome 浏览器扩展，支持 LRC 和 SRT 格式。",
+    "message": "Un'estensione Chrome che scarica testi sincronizzati da Suno.com nei formati LRC o SRT.",
     "description": "The description of the extension"
   },
   "download_lyric": {
-    "message": "下载 $type$ 歌词",
-    "description": "同步歌词下载按钮文本",
+    "message": "Scarica Testi $type$",
+    "description": "Testo del pulsante di download per testi sincronizzati",
     "placeholders": {
       "type": {
         "content": "$1",
@@ -18,8 +18,8 @@
     }
   },
   "toggle_type": {
-    "message": "切换到 $type$ 格式",
-    "description": "格式切换按钮文本",
+    "message": "Passa al Formato $type$",
+    "description": "Testo del pulsante di cambio formato",
     "placeholders": {
       "type": {
         "content": "$1",

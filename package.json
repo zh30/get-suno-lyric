@@ -1,7 +1,7 @@
 {
   "name": "get-suno-lyric",
-  "version": "1.0.3",
-  "description": "A tiny browser extension to get suno lyric",
+  "version": "1.0.4",
+  "description": "A Chrome browser extension that downloads synchronized lyrics from Suno.com in LRC or SRT formats.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
