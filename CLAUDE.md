@@ -67,8 +67,51 @@ pnpm zip
 - **`convertToLRC()`/`convertToSRT()`** - Format conversion utilities
 - **`getSongIdFromUrl()`** - Extracts song ID from current URL
 
+## Data Flow
+
+1. **URL Detection**: Extension detects Suno song page URLs (`/song/{id}`)
+2. **Authentication**: Extracts `__session` cookie from document
+3. **API Call**: Fetches aligned lyrics from Suno's API using Bearer token
+4. **DOM Injection**: Adds overlay buttons to song images containing the song ID
+5. **Format Conversion**: Converts aligned word data to LRC or SRT format on demand
+6. **Download**: Generates and downloads lyric files with proper naming
+
+## Internationalization
+
+The extension supports multiple languages through Chrome's i18n system:
+- English: `_locales/en/messages.json`
+- Chinese: `_locales/zh_CN/messages.json`
+- All UI text uses `chrome.i18n.getMessage()` for localization
+
+## File Formats
+
+### LRC Format
+```
+[mm:ss.xx]Lyric text
+[mm:ss.xx]Next lyric text
+```
+
+### SRT Format
+```
+1
+00:00:00,000 --> 00:00:02,500
+Lyric text
+
+2
+00:00:02,500 --> 00:00:05,000
+Next lyric text
+```
+
 ## Testing & Development
 
 The extension loads automatically on Suno song pages or can be manually triggered via the extension icon. Check browser console for debug logs prefixed with "Content script" or "URL changed".
 
 The build outputs to `dist/` and can be loaded as an unpacked extension in Chrome's developer mode.
+
+## Key Implementation Details
+
+- Uses `document.querySelectorAll()` to find song images by ID pattern
+- Implements retry logic with setTimeout for page load timing
+- Handles both automatic URL change detection and manual extension icon clicks
+- Uses Blob and URL.createObjectURL for file downloads
+- Implements proper error handling and logging throughout
