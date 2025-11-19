@@ -11,7 +11,55 @@ interface ApiResponse {
 type FileType = 'lrc' | 'srt';
 
 const API_BASE_URL = 'https://studio-api.prod.suno.com/api/gen';
-const BUTTON_CLASS = 'font-sans font-medium text-center rounded-md cursor-pointer bg-quaternary text-primary hover:bg-primary/30 hover:text-primary px-3 py-2 min-w-0 text-sm block w-full';
+
+// Cache for API responses
+const lyricsCache = new Map<string, AlignedWord[]>();
+
+// Styles
+const STYLES = `
+  .suno-lyric-downloader-btn {
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    font-weight: 500;
+    text-align: center;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    background-color: rgb(24 24 27); /* bg-quaternary approximation */
+    color: white;
+    padding: 0.5rem 0.75rem;
+    min-width: 0;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    display: block;
+    width: 100%;
+    border: none;
+    transition: background-color 0.2s, color 0.2s;
+    margin-top: 4px;
+  }
+  .suno-lyric-downloader-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  .suno-lyric-downloader-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 10;
+    box-sizing: border-box;
+  }
+`;
+
+function injectStyles() {
+  if (document.getElementById('suno-lyric-downloader-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'suno-lyric-downloader-styles';
+  style.textContent = STYLES;
+  document.head.appendChild(style);
+}
 
 function getCookie(name: string): string | undefined {
   const value = `; ${document.cookie}`;
@@ -20,6 +68,10 @@ function getCookie(name: string): string | undefined {
 }
 
 async function fetchAlignedWords(songId: string, token: string): Promise<AlignedWord[] | null> {
+  if (lyricsCache.has(songId)) {
+    return lyricsCache.get(songId)!;
+  }
+
   try {
     const response = await fetch(`${API_BASE_URL}/${songId}/aligned_lyrics/v2/`, {
       headers: {
@@ -29,11 +81,23 @@ async function fetchAlignedWords(songId: string, token: string): Promise<Aligned
     });
 
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.status}`);
+      // 404 or other errors might mean no lyrics exist
+      if (response.status === 404) {
+        console.debug(`No lyrics found for song ${songId}`);
+      } else {
+        console.error(`API request failed: ${response.status}`);
+      }
+      return null;
     }
 
     const data: ApiResponse = await response.json();
-    return data.aligned_words?.length ? data.aligned_words : null;
+    const words = data.aligned_words?.length ? data.aligned_words : null;
+
+    if (words) {
+      lyricsCache.set(songId, words);
+    }
+
+    return words;
   } catch (error) {
     console.error('Error fetching aligned words:', error);
     return null;
@@ -43,7 +107,7 @@ async function fetchAlignedWords(songId: string, token: string): Promise<Aligned
 function createButton(text: string, onClick: (e: MouseEvent) => void): HTMLButtonElement {
   const button = document.createElement('button');
   button.innerText = text;
-  button.className = BUTTON_CLASS;
+  button.className = 'suno-lyric-downloader-btn';
   button.addEventListener('click', onClick);
   return button;
 }
@@ -60,64 +124,44 @@ function downloadFile(content: string, fileName: string, mimeType: string): void
 
 function createToolsOverlay(songId: string, alignedWords: AlignedWord[]): HTMLElement {
   let currentFileType: FileType = 'lrc';
-  
+
   const toolsBox = document.createElement('div');
-  Object.assign(toolsBox.style, {
-    position: 'absolute',
-    bottom: '0',
-    left: '0',
-    width: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-    padding: '8px',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)'
-  });
+  toolsBox.className = 'suno-lyric-downloader-overlay';
+  // Mark this container to prevent duplicates
+  toolsBox.dataset.sunoLyricDownloader = 'true';
+
+  const getDownloadText = (type: FileType) => chrome.i18n.getMessage('download_lyric', [type.toUpperCase()]) || `Download ${type.toUpperCase()}`;
+  const getToggleText = (type: FileType) => chrome.i18n.getMessage('toggle_type', [type === 'lrc' ? 'SRT' : 'LRC']) || `Switch to ${type === 'lrc' ? 'SRT' : 'LRC'}`;
 
   const downloadButton = createButton(
-    chrome.i18n.getMessage('download_lyric', [currentFileType.toUpperCase()]),
+    getDownloadText(currentFileType),
     (e) => {
       e.preventDefault();
       e.stopPropagation();
-      
+
       const content = currentFileType === 'srt' ? convertToSRT(alignedWords) : convertToLRC(alignedWords);
-      const fileName = `${songId}-lyrics-${chrome.i18n.getMessage('extension_name').toLowerCase().replace(/\s+/g, '-')}.${currentFileType}`;
-      
+      const extName = chrome.i18n.getMessage('extension_name') || 'SunoLyric';
+      const fileName = `${songId}-lyrics-${extName.toLowerCase().replace(/\s+/g, '-')}.${currentFileType}`;
+
       downloadFile(content, fileName, `text/${currentFileType}`);
     }
   );
 
   const toggleButton = createButton(
-    chrome.i18n.getMessage('toggle_type', [currentFileType === 'lrc' ? 'SRT' : 'LRC']),
+    getToggleText(currentFileType),
     (e) => {
       e.preventDefault();
       e.stopPropagation();
-      
+
       currentFileType = currentFileType === 'lrc' ? 'srt' : 'lrc';
-      downloadButton.innerText = chrome.i18n.getMessage('download_lyric', [currentFileType.toUpperCase()]);
-      toggleButton.innerText = chrome.i18n.getMessage('toggle_type', [currentFileType === 'lrc' ? 'SRT' : 'LRC']);
+      downloadButton.innerText = getDownloadText(currentFileType);
+      toggleButton.innerText = getToggleText(currentFileType);
     }
   );
 
   toolsBox.appendChild(toggleButton);
   toolsBox.appendChild(downloadButton);
   return toolsBox;
-}
-
-function addButtons(songId: string, alignedWords: AlignedWord[]): void {
-  const imageElements = document.querySelectorAll<HTMLImageElement>(`div>img[src*="${songId}"].w-full.h-full`);
-
-  if (!imageElements.length) {
-    console.warn(`No images found for song ID: ${songId}`);
-    return;
-  }
-
-  imageElements.forEach((imageElement) => {
-    const parent = imageElement.parentElement;
-    if (!parent) return;
-    
-    parent.appendChild(createToolsOverlay(songId, alignedWords));
-  });
 }
 
 function convertToSRT(alignedWords: AlignedWord[]): string {
@@ -154,46 +198,111 @@ function formatLRCTime(seconds: number): string {
 }
 
 function getSongIdFromUrl(): string {
-  return window.location.pathname.split('/').pop() || '';
+  const path = window.location.pathname;
+  if (path.startsWith('/song/')) {
+    return path.split('/').pop() || '';
+  }
+  return '';
 }
 
-async function main() {
+async function processPage() {
   const songId = getSongIdFromUrl();
-  if (!songId) {
-    console.error('Could not extract song ID from URL');
-    return;
-  }
+  if (!songId) return;
+
+  // Find the image container. This selector might need adjustment if Suno changes their DOM.
+  // We look for the image that represents the song art.
+  const imageElements = document.querySelectorAll<HTMLImageElement>(`div>img[src*="${songId}"].w-full.h-full`);
+
+  if (!imageElements.length) return;
 
   const sessionToken = getCookie('__session');
   if (!sessionToken) {
-    console.error('Session token not found in cookies');
+    // No session, can't fetch lyrics yet.
     return;
   }
 
+  // Fetch lyrics (cached if available)
   const alignedWords = await fetchAlignedWords(songId, sessionToken);
-  if (alignedWords) {
-    addButtons(songId, alignedWords);
-  } else {
-    console.error('No aligned words data available for this song');
-  }
+  if (!alignedWords) return;
+
+  imageElements.forEach((imageElement) => {
+    const parent = imageElement.parentElement;
+    if (!parent) return;
+
+    // Check if we already injected the tools
+    if (parent.querySelector('.suno-lyric-downloader-overlay')) return;
+
+    // Ensure parent has relative positioning for absolute child
+    const computedStyle = window.getComputedStyle(parent);
+    if (computedStyle.position === 'static') {
+      parent.style.position = 'relative';
+    }
+
+    parent.appendChild(createToolsOverlay(songId, alignedWords));
+  });
 }
 
+// Debounce function to limit how often processPage runs
+function debounce(func: Function, wait: number) {
+  let timeout: any;
+  return function executedFunction(...args: any[]) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+const debouncedProcessPage = debounce(processPage, 500);
+
+function initObserver() {
+  injectStyles();
+
+  // Initial check
+  processPage();
+
+  const observer = new MutationObserver((mutations) => {
+    let shouldProcess = false;
+    for (const mutation of mutations) {
+      if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+        shouldProcess = true;
+        break;
+      }
+      // Also check for attribute changes if needed, e.g., src changes
+      if (mutation.type === 'attributes' && mutation.attributeName === 'src') {
+        shouldProcess = true;
+        break;
+      }
+    }
+
+    if (shouldProcess) {
+      debouncedProcessPage();
+    }
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['src'] // Only watch src changes for images
+  });
+}
+
+// Listen for messages from background script
 chrome.runtime.onMessage.addListener((message) => {
-  console.log("Content script received message:", message);
-
-  if (message.action === "URL_CHANGED" && message.songId) {
-    console.log("URL changed to song page with ID:", message.songId);
-    setTimeout(main, 1000);
+  if (message.action === "URL_CHANGED") {
+    debouncedProcessPage();
   } else if (message.action === "MANUALLY_TRIGGER") {
-    console.log("Manual trigger received");
-    main();
+    processPage();
   }
-
-  return true;
+  return false;
 });
 
-setTimeout(() => {
-  if (window.location.pathname.startsWith('/song/')) {
-    main();
-  }
-}, 3000);
+// Start
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initObserver);
+} else {
+  initObserver();
+}

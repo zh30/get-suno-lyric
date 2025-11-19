@@ -6,8 +6,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
     // 检查 URL 是否匹配歌曲详情页模式
     if (url.pathname.startsWith('/song/')) {
-      console.info("URL changed to song page:", url.pathname);
-
       // 向内容脚本发送消息，通知 URL 已变化到歌曲页面
       chrome.tabs.sendMessage(tabId, {
         action: "URL_CHANGED",
@@ -15,7 +13,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         songId: url.pathname.split('/').pop()
       }).catch(error => {
         // 如果内容脚本尚未加载，这个错误是正常的，可以忽略
-        console.debug("Could not send message to content script:", error);
+        // console.debug("Could not send message to content script:", error);
       });
     }
   }
