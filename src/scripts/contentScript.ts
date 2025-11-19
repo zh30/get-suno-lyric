@@ -19,24 +19,32 @@ const lyricsCache = new Map<string, AlignedWord[]>();
 const STYLES = `
   .suno-lyric-downloader-btn {
     font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-    font-weight: 500;
+    font-weight: 600;
     text-align: center;
-    border-radius: 0.375rem;
+    border-radius: 0.5rem;
     cursor: pointer;
-    background-color: rgb(24 24 27); /* bg-quaternary approximation */
+    background-color: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     color: white;
-    padding: 0.5rem 0.75rem;
+    padding: 0.6rem 1rem;
     min-width: 0;
     font-size: 0.875rem;
     line-height: 1.25rem;
     display: block;
     width: 100%;
-    border: none;
-    transition: background-color 0.2s, color 0.2s;
-    margin-top: 4px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
   }
   .suno-lyric-downloader-btn:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+  .suno-lyric-downloader-btn:active {
+    transform: translateY(0);
+    background-color: rgba(255, 255, 255, 0.2);
   }
   .suno-lyric-downloader-overlay {
     position: absolute;
@@ -45,11 +53,13 @@ const STYLES = `
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 8px;
-    background-color: rgba(0, 0, 0, 0.5);
+    gap: 8px;
+    padding: 12px;
+    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 100%);
+    backdrop-filter: blur(4px);
     z-index: 10;
     box-sizing: border-box;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
   }
 `;
 
