@@ -8,12 +8,26 @@ interface ApiResponse {
   aligned_words: AlignedWord[];
 }
 
+interface ClipMetadata {
+  id: string;
+  metadata: {
+    prompt: string;
+    gpt_description_prompt?: string;
+  };
+}
+
+interface LyricsData {
+  type: 'aligned' | 'plain';
+  data: AlignedWord[] | string;
+}
+
 type FileType = 'lrc' | 'srt';
 
-const API_BASE_URL = 'https://studio-api.prod.suno.com/api/gen';
+const API_BASE_URL = 'https://studio-api.prod.suno.com/api';
+const GEN_API_URL = 'https://studio-api.prod.suno.com/api/gen';
 
 // Cache for API responses
-const lyricsCache = new Map<string, AlignedWord[]>();
+const lyricsCache = new Map<string, LyricsData>();
 
 // Styles
 const STYLES = `
@@ -77,39 +91,51 @@ function getCookie(name: string): string | undefined {
   return parts.length === 2 ? parts.pop()?.split(';').shift() : undefined;
 }
 
-async function fetchAlignedWords(songId: string, token: string): Promise<AlignedWord[] | null> {
+async function fetchLyrics(songId: string, token: string): Promise<LyricsData | null> {
   if (lyricsCache.has(songId)) {
     return lyricsCache.get(songId)!;
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/${songId}/aligned_lyrics/v2/`, {
+    // 1. Try fetching aligned lyrics first
+    const alignedResponse = await fetch(`${GEN_API_URL}/${songId}/aligned_lyrics/v2/`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     });
 
-    if (!response.ok) {
-      // 404 or other errors might mean no lyrics exist
-      if (response.status === 404) {
-        console.debug(`No lyrics found for song ${songId}`);
-      } else {
-        console.error(`API request failed: ${response.status}`);
+    if (alignedResponse.ok) {
+      const data: ApiResponse = await alignedResponse.json();
+      if (data.aligned_words && data.aligned_words.length > 0) {
+        const lyricsData: LyricsData = { type: 'aligned', data: data.aligned_words };
+        lyricsCache.set(songId, lyricsData);
+        return lyricsData;
       }
-      return null;
     }
 
-    const data: ApiResponse = await response.json();
-    const words = data.aligned_words?.length ? data.aligned_words : null;
+    // 2. Fallback to clip metadata for plain lyrics
+    const clipResponse = await fetch(`${API_BASE_URL}/clip/${songId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
 
-    if (words) {
-      lyricsCache.set(songId, words);
+    if (clipResponse.ok) {
+      const clipData: ClipMetadata = await clipResponse.json();
+      const prompt = clipData.metadata?.prompt;
+      if (prompt) {
+        const lyricsData: LyricsData = { type: 'plain', data: prompt };
+        lyricsCache.set(songId, lyricsData);
+        return lyricsData;
+      }
     }
 
-    return words;
+    console.debug(`No lyrics found for song ${songId}`);
+    return null;
   } catch (error) {
-    console.error('Error fetching aligned words:', error);
+    console.error('Error fetching lyrics:', error);
     return null;
   }
 }
@@ -132,7 +158,8 @@ function downloadFile(content: string, fileName: string, mimeType: string): void
   setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 
-function createToolsOverlay(songId: string, alignedWords: AlignedWord[]): HTMLElement {
+function createToolsOverlay(songId: string, lyrics: LyricsData): HTMLElement {
+  const isAligned = lyrics.type === 'aligned';
   let currentFileType: FileType = 'lrc';
 
   const toolsBox = document.createElement('div');
@@ -141,7 +168,11 @@ function createToolsOverlay(songId: string, alignedWords: AlignedWord[]): HTMLEl
   toolsBox.dataset.sunoLyricDownloader = 'true';
 
   const getDownloadText = (type: FileType) => chrome.i18n.getMessage('download_lyric', [type.toUpperCase()]) || `Download ${type.toUpperCase()}`;
-  const getToggleText = (type: FileType) => chrome.i18n.getMessage('toggle_type', [type === 'lrc' ? 'SRT' : 'LRC']) || `Switch to ${type === 'lrc' ? 'SRT' : 'LRC'}`;
+
+  const getToggleText = (type: FileType) => {
+    const nextType = type === 'lrc' ? 'SRT' : 'LRC';
+    return chrome.i18n.getMessage('toggle_type', [nextType]) || `Switch to ${nextType}`;
+  };
 
   const downloadButton = createButton(
     getDownloadText(currentFileType),
@@ -149,7 +180,16 @@ function createToolsOverlay(songId: string, alignedWords: AlignedWord[]): HTMLEl
       e.preventDefault();
       e.stopPropagation();
 
+      let alignedWords: AlignedWord[] = [];
+      if (isAligned) {
+        alignedWords = lyrics.data as AlignedWord[];
+      } else {
+        const text = lyrics.data as string;
+        alignedWords = plainLyricsToAlignedWords(text);
+      }
+
       const content = currentFileType === 'srt' ? convertToSRT(alignedWords) : convertToLRC(alignedWords);
+
       const extName = chrome.i18n.getMessage('extension_name') || 'SunoLyric';
       const fileName = `${songId}-lyrics-${extName.toLowerCase().replace(/\s+/g, '-')}.${currentFileType}`;
 
@@ -164,6 +204,7 @@ function createToolsOverlay(songId: string, alignedWords: AlignedWord[]): HTMLEl
       e.stopPropagation();
 
       currentFileType = currentFileType === 'lrc' ? 'srt' : 'lrc';
+
       downloadButton.innerText = getDownloadText(currentFileType);
       toggleButton.innerText = getToggleText(currentFileType);
     }
@@ -207,6 +248,20 @@ function formatLRCTime(seconds: number): string {
   return `[${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}]`;
 }
 
+function plainLyricsToAlignedWords(text: string): AlignedWord[] {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const durationPerLine = 3.5; // Average duration per line in seconds
+
+  return lines.map((line, index) => {
+    const start = index * durationPerLine;
+    return {
+      word: line,
+      start_s: start,
+      end_s: start + durationPerLine
+    };
+  });
+}
+
 function getSongIdFromUrl(): string {
   const path = window.location.pathname;
   if (path.startsWith('/song/')) {
@@ -232,8 +287,8 @@ async function processPage() {
   }
 
   // Fetch lyrics (cached if available)
-  const alignedWords = await fetchAlignedWords(songId, sessionToken);
-  if (!alignedWords) return;
+  const lyrics = await fetchLyrics(songId, sessionToken);
+  if (!lyrics) return;
 
   imageElements.forEach((imageElement) => {
     const parent = imageElement.parentElement;
@@ -248,7 +303,7 @@ async function processPage() {
       parent.style.position = 'relative';
     }
 
-    parent.appendChild(createToolsOverlay(songId, alignedWords));
+    parent.appendChild(createToolsOverlay(songId, lyrics));
   });
 }
 
