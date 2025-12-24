@@ -123,25 +123,37 @@ async function fetchLyrics(songId: string, token: string): Promise<LyricsData | 
       if (data.aligned_lyrics && data.aligned_lyrics.length > 0) {
         // User's pattern: cumulative sum of (end_s × 10) gives each line's START time
         let cumulativeTime = 0;
-        const alignedWordsWithAbsoluteTime = data.aligned_lyrics.map((line, index) => {
+        const tempLines = data.aligned_lyrics.map((line) => {
           // Add this line's duration to cumulative time FIRST
           cumulativeTime += line.end_s * 10;
 
           // Round to 2 decimal places
           const lineStart = Math.round(cumulativeTime * 100) / 100;
 
-          if (index < 5 || index >= data.aligned_lyrics.length - 3) {
-            console.log(`Line ${index}: "${line.text}" | end_s: ${line.end_s} × 10 = ${(line.end_s * 10).toFixed(2)}s | Start at: ${lineStart}s`);
+
+          return {
+            text: line.text,
+            start_s: lineStart
+          };
+        });
+
+        // Step 2: Calculate end times based on next line's start time
+        const alignedWordsWithAbsoluteTime = tempLines.map((line, index) => {
+          let lineEnd;
+          if (index < tempLines.length - 1) {
+            lineEnd = tempLines[index + 1].start_s;
+          } else {
+            lineEnd = line.start_s + 5; // 5s buffer for last line
           }
 
           return {
             text: line.text,
-            start_s: lineStart,
-            end_s: lineStart // For LRC, only start time matters
+            start_s: line.start_s,
+            end_s: lineEnd
           };
         });
 
-        console.log(`✅ Total ${alignedWordsWithAbsoluteTime.length} lines, final cumulative time: ${cumulativeTime.toFixed(2)}s`);
+        console.log(`✅ TotalLines: ${alignedWordsWithAbsoluteTime.length}, Final Cumulative Time: ${cumulativeTime.toFixed(2)}s`);
 
         const lyricsData: LyricsData = { type: 'aligned', data: alignedWordsWithAbsoluteTime };
         lyricsCache.set(songId, lyricsData);
