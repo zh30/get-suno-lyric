@@ -1,18 +1,30 @@
 interface AlignedWord {
-  word: string;
+  text: string;
   start_s: number;
   end_s: number;
+  section?: string;
+  words?: Array<{
+    text: string;
+    start_s: number;
+    end_s: number;
+  }>;
 }
 
 interface ApiResponse {
-  aligned_words: AlignedWord[];
+  aligned_lyrics: AlignedWord[];
+  duration_s?: number;
+  // Add other possible fields that might contain duration
+  [key: string]: any;
 }
 
 interface ClipMetadata {
   id: string;
+  duration?: number; // Duration in seconds
   metadata: {
     prompt: string;
     gpt_description_prompt?: string;
+    duration_formatted?: string;
+    duration?: number; // Duration in seconds - THIS is where it actually is!
   };
 }
 
@@ -107,8 +119,31 @@ async function fetchLyrics(songId: string, token: string): Promise<LyricsData | 
 
     if (alignedResponse.ok) {
       const data: ApiResponse = await alignedResponse.json();
-      if (data.aligned_words && data.aligned_words.length > 0) {
-        const lyricsData: LyricsData = { type: 'aligned', data: data.aligned_words };
+
+      if (data.aligned_lyrics && data.aligned_lyrics.length > 0) {
+        // User's pattern: cumulative sum of (end_s × 10) gives each line's START time
+        let cumulativeTime = 0;
+        const alignedWordsWithAbsoluteTime = data.aligned_lyrics.map((line, index) => {
+          // Add this line's duration to cumulative time FIRST
+          cumulativeTime += line.end_s * 10;
+
+          // Round to 2 decimal places
+          const lineStart = Math.round(cumulativeTime * 100) / 100;
+
+          if (index < 5 || index >= data.aligned_lyrics.length - 3) {
+            console.log(`Line ${index}: "${line.text}" | end_s: ${line.end_s} × 10 = ${(line.end_s * 10).toFixed(2)}s | Start at: ${lineStart}s`);
+          }
+
+          return {
+            text: line.text,
+            start_s: lineStart,
+            end_s: lineStart // For LRC, only start time matters
+          };
+        });
+
+        console.log(`✅ Total ${alignedWordsWithAbsoluteTime.length} lines, final cumulative time: ${cumulativeTime.toFixed(2)}s`);
+
+        const lyricsData: LyricsData = { type: 'aligned', data: alignedWordsWithAbsoluteTime };
         lyricsCache.set(songId, lyricsData);
         return lyricsData;
       }
@@ -180,14 +215,8 @@ function createToolsOverlay(songId: string, lyrics: LyricsData): HTMLElement {
       e.preventDefault();
       e.stopPropagation();
 
-      let alignedWords: AlignedWord[] = [];
-      if (isAligned) {
-        alignedWords = lyrics.data as AlignedWord[];
-      } else {
-        const text = lyrics.data as string;
-        alignedWords = plainLyricsToAlignedWords(text);
-      }
-
+      // Only use aligned words data - no fake timestamps
+      const alignedWords = lyrics.data as AlignedWord[];
       const content = currentFileType === 'srt' ? convertToSRT(alignedWords) : convertToLRC(alignedWords);
 
       const extName = chrome.i18n.getMessage('extension_name') || 'SunoLyric';
@@ -220,14 +249,14 @@ function convertToSRT(alignedWords: AlignedWord[]): string {
     .map((word, index) => {
       const startTime = formatSRTTime(word.start_s);
       const endTime = formatSRTTime(word.end_s);
-      return `${index + 1}\n${startTime} --> ${endTime}\n${word.word}\n`;
+      return `${index + 1}\n${startTime} --> ${endTime}\n${word.text}\n`;
     })
     .join('\n');
 }
 
 function convertToLRC(alignedWords: AlignedWord[]): string {
   return alignedWords
-    .map(word => `${formatLRCTime(word.start_s)}${word.word}`)
+    .map(word => `${formatLRCTime(word.start_s)}${word.text}`)
     .join('\n');
 }
 
@@ -248,19 +277,8 @@ function formatLRCTime(seconds: number): string {
   return `[${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}]`;
 }
 
-function plainLyricsToAlignedWords(text: string): AlignedWord[] {
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  const durationPerLine = 3.5; // Average duration per line in seconds
-
-  return lines.map((line, index) => {
-    const start = index * durationPerLine;
-    return {
-      word: line,
-      start_s: start,
-      end_s: start + durationPerLine
-    };
-  });
-}
+// This function has been removed because it generated inaccurate timestamps.
+// We now only provide SRT/LRC downloads for songs with actual aligned_words data.
 
 function getSongIdFromUrl(): string {
   const path = window.location.pathname;
@@ -289,6 +307,12 @@ async function processPage() {
   // Fetch lyrics (cached if available)
   const lyrics = await fetchLyrics(songId, sessionToken);
   if (!lyrics) return;
+
+  // Only show download buttons for aligned lyrics with accurate timestamps
+  if (lyrics.type !== 'aligned') {
+    console.debug(`Song ${songId} only has plain lyrics without timestamps, skipping download UI`);
+    return;
+  }
 
   imageElements.forEach((imageElement) => {
     const parent = imageElement.parentElement;
