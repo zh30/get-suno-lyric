@@ -80,9 +80,8 @@ module.exports = (env, argv) => defineConfig({
     }),
   ],
   mode: argv.mode,
-  devtool: argv.mode === 'development' ? 'inline-source-map' : false,
+  devtool: false, // Disable all source maps to prevent CSP violations
   optimization: {
-    // minimize: argv.mode === 'production',
-    minimize: true,
+    minimize: argv.mode === 'production',
   },
 });

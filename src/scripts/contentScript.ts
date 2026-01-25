@@ -1,18 +1,30 @@
-interface AlignedWord {
+interface AlignedToken {
+  text?: string;
+  word?: string;
+  start_s?: number;
+  end_s?: number;
+}
+
+interface AlignedLine {
+  text?: string;
+  word?: string;
+  start_s?: number;
+  end_s?: number;
+  section?: string;
+  words?: AlignedToken[];
+}
+
+interface LineTiming {
   text: string;
   start_s: number;
   end_s: number;
-  section?: string;
-  words?: Array<{
-    text: string;
-    start_s: number;
-    end_s: number;
-  }>;
 }
 
 interface ApiResponse {
-  aligned_lyrics: AlignedWord[];
+  aligned_lyrics?: AlignedLine[];
+  aligned_words?: AlignedToken[];
   duration_s?: number;
+  duration?: number;
   // Add other possible fields that might contain duration
   [key: string]: any;
 }
@@ -30,7 +42,7 @@ interface ClipMetadata {
 
 interface LyricsData {
   type: 'aligned' | 'plain';
-  data: AlignedWord[] | string;
+  data: LineTiming[] | string;
 }
 
 type FileType = 'lrc' | 'srt';
@@ -89,27 +101,460 @@ const STYLES = `
   }
 `;
 
+interface RawLineTiming {
+  text: string;
+  start_s?: number;
+  end_s?: number;
+}
+
+interface TimingScore {
+  validCount: number;
+  monotonicBreaks: number;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function roundToMillis(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+
+function getLineText(line: AlignedLine): string {
+  const textCandidate =
+    (typeof line.text === 'string' && line.text) ||
+    (typeof line.word === 'string' && line.word) ||
+    (Array.isArray(line.words) && line.words.length > 0
+      ? line.words
+          .map((token) => (typeof token.text === 'string' ? token.text : token.word ?? ''))
+          .join('')
+      : '');
+
+  const normalized = textCandidate.replace(/\r/g, '');
+  return normalized.trim().length > 0 ? normalized : '';
+}
+
+function deriveTimingsFromWords(lines: AlignedLine[]): RawLineTiming[] {
+  return lines.map((line) => {
+    const wordStarts = (line.words ?? [])
+      .map((word) => word.start_s)
+      .filter(isFiniteNumber);
+    const wordEnds = (line.words ?? [])
+      .map((word) => word.end_s)
+      .filter(isFiniteNumber);
+
+    if (wordStarts.length > 0 && wordEnds.length > 0) {
+      return {
+        text: getLineText(line),
+        start_s: Math.min(...wordStarts),
+        end_s: Math.max(...wordEnds)
+      };
+    }
+
+    return {
+      text: getLineText(line),
+      start_s: undefined,
+      end_s: undefined
+    };
+  });
+}
+
+function deriveTimingsFromLines(lines: AlignedLine[]): RawLineTiming[] {
+  return lines.map((line) => ({
+    text: getLineText(line),
+    start_s: isFiniteNumber(line.start_s) ? line.start_s : undefined,
+    end_s: isFiniteNumber(line.end_s) ? line.end_s : undefined
+  }));
+}
+
+function scoreTimings(lines: RawLineTiming[]): TimingScore {
+  let validCount = 0;
+  let monotonicBreaks = 0;
+  let previousStart: number | undefined;
+
+  lines.forEach((line) => {
+    if (isFiniteNumber(line.start_s) && isFiniteNumber(line.end_s)) {
+      validCount += 1;
+    }
+
+    if (!isFiniteNumber(line.start_s)) {
+      return;
+    }
+
+    if (isFiniteNumber(previousStart) && line.start_s + 0.001 < previousStart) {
+      monotonicBreaks += 1;
+    }
+
+    previousStart = line.start_s;
+  });
+
+  return { validCount, monotonicBreaks };
+}
+
+function looksLikeRelativeLineTimings(lines: RawLineTiming[], durationS?: number): boolean {
+  const starts = lines.map((line) => line.start_s).filter(isFiniteNumber);
+  const ends = lines.map((line) => line.end_s).filter(isFiniteNumber);
+
+  if (starts.length === 0 || ends.length === 0) {
+    return false;
+  }
+
+  const zeroStarts = starts.filter((start) => start <= 0.001).length;
+  const mostlyZeroStarts = zeroStarts / starts.length >= 0.8;
+  const uniqueStarts = new Set(starts.map((start) => Math.round(start * 1000) / 1000)).size;
+  const maxEnd = Math.max(...ends);
+  const { monotonicBreaks } = scoreTimings(lines);
+
+  if (isFiniteNumber(durationS) && durationS > 10 && maxEnd < Math.min(5, durationS * 0.2)) {
+    return true;
+  }
+
+  if (mostlyZeroStarts && (monotonicBreaks > 0 || uniqueStarts <= 2)) {
+    return true;
+  }
+
+  return false;
+}
+
+function expandRelativeTimings(lines: RawLineTiming[], durationS?: number): RawLineTiming[] {
+  const durations = lines.map((line) => {
+    if (isFiniteNumber(line.start_s) && isFiniteNumber(line.end_s)) {
+      const duration = line.end_s - line.start_s;
+      return duration > 0 ? duration : undefined;
+    }
+    if (isFiniteNumber(line.end_s)) {
+      return line.end_s > 0 ? line.end_s : undefined;
+    }
+    return undefined;
+  });
+
+  const validDurations = durations.filter((duration): duration is number => isFiniteNumber(duration) && duration > 0);
+  const fallbackDuration = validDurations.length > 0 ? median(validDurations) : 0.5;
+  const totalRelative = durations.reduce<number>((acc, duration) => acc + (duration ?? fallbackDuration), 0);
+  const scale = isFiniteNumber(durationS) && totalRelative > 0 ? durationS / totalRelative : 1;
+
+  let cursor = 0;
+  return lines.map((line, index) => {
+    const duration = (durations[index] ?? fallbackDuration) * scale;
+    const start = cursor;
+    const end = start + duration;
+    cursor = end;
+    return {
+      text: line.text,
+      start_s: start,
+      end_s: end
+    };
+  });
+}
+
+function chooseTimingSource(
+  wordTimings: RawLineTiming[],
+  lineTimings: RawLineTiming[]
+): { source: 'words' | 'lines'; timings: RawLineTiming[]; score: TimingScore } {
+  const wordScore = scoreTimings(wordTimings);
+  const lineScore = scoreTimings(lineTimings);
+  const total = Math.max(wordTimings.length, 1);
+  const wordRatio = wordScore.validCount / total;
+  const lineRatio = lineScore.validCount / total;
+
+  const wordLooksGood = wordRatio >= 0.7 && wordScore.monotonicBreaks <= 1;
+  const lineLooksGood = lineRatio >= 0.7 && lineScore.monotonicBreaks <= 1;
+
+  if (wordLooksGood && (!lineLooksGood || wordScore.monotonicBreaks <= lineScore.monotonicBreaks)) {
+    return { source: 'words', timings: wordTimings, score: wordScore };
+  }
+
+  if (lineLooksGood || lineRatio >= wordRatio) {
+    return { source: 'lines', timings: lineTimings, score: lineScore };
+  }
+
+  return { source: 'words', timings: wordTimings, score: wordScore };
+}
+
+function inferScale(times: number[], durationS?: number): number {
+  const maxTime = Math.max(...times);
+
+  if (!isFiniteNumber(durationS) || durationS <= 0 || !isFiniteNumber(maxTime)) {
+    if (maxTime > 10000) {
+      return 0.001;
+    }
+    if (maxTime > 1000) {
+      return 0.001;
+    }
+    return 1;
+  }
+
+  const candidates = [1, 0.1, 0.01, 0.001, 10, 100];
+  let bestScale = 1;
+  let bestDiff = Number.POSITIVE_INFINITY;
+
+  candidates.forEach((scale) => {
+    const diff = Math.abs(maxTime * scale - durationS) / durationS;
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      bestScale = scale;
+    }
+  });
+
+  return bestDiff <= 0.25 ? bestScale : 1;
+}
+
+function parseDurationFormatted(value: string): number | undefined {
+  const parts = value.trim().split(':').map((part) => Number(part));
+  if (parts.some((part) => Number.isNaN(part))) {
+    return undefined;
+  }
+
+  if (parts.length === 2) {
+    const [minutes, seconds] = parts;
+    return minutes * 60 + seconds;
+  }
+
+  if (parts.length === 3) {
+    const [hours, minutes, seconds] = parts;
+    return hours * 3600 + minutes * 60 + seconds;
+  }
+
+  return undefined;
+}
+
+function extractDurationSeconds(source: any): number | undefined {
+  if (!source || typeof source !== 'object') {
+    return undefined;
+  }
+
+  const candidates = [
+    source.duration_s,
+    source.duration,
+    source.metadata?.duration,
+    source.metadata?.duration_s
+  ];
+
+  for (const candidate of candidates) {
+    if (isFiniteNumber(candidate)) {
+      return candidate;
+    }
+  }
+
+  if (typeof source.metadata?.duration_formatted === 'string') {
+    return parseDurationFormatted(source.metadata.duration_formatted);
+  }
+
+  return undefined;
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) {
+    return 0;
+  }
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) {
+    return (sorted[mid - 1] + sorted[mid]) / 2;
+  }
+  return sorted[mid];
+}
+
+function normalizeTimings(lines: RawLineTiming[], durationS?: number): LineTiming[] {
+  const times = lines.reduce<number[]>((acc, line) => {
+    if (isFiniteNumber(line.start_s)) {
+      acc.push(line.start_s);
+    }
+    if (isFiniteNumber(line.end_s)) {
+      acc.push(line.end_s);
+    }
+    return acc;
+  }, []);
+
+  if (times.length === 0) {
+    return [];
+  }
+
+  const scale = inferScale(times, durationS);
+  const scaledLines = lines.map((line) => ({
+    text: line.text,
+    start_s: isFiniteNumber(line.start_s) ? line.start_s * scale : undefined,
+    end_s: isFiniteNumber(line.end_s) ? line.end_s * scale : undefined
+  }));
+
+  const starts = scaledLines.map((line) => line.start_s).filter(isFiniteNumber);
+  const minStart = starts.length > 0 ? Math.min(...starts) : 0;
+  const offset = minStart < 0 ? -minStart : 0;
+
+  const durations = scaledLines
+    .map((line) =>
+      isFiniteNumber(line.start_s) && isFiniteNumber(line.end_s)
+        ? line.end_s - line.start_s
+        : undefined
+    )
+    .filter((duration): duration is number => isFiniteNumber(duration) && duration > 0);
+  const fallbackDuration = durations.length > 0 ? median(durations) : 2.5;
+
+  const normalized: LineTiming[] = [];
+  let lastStart = 0;
+
+  for (let index = 0; index < scaledLines.length; index += 1) {
+    const line = scaledLines[index];
+    const text = line.text;
+    const rawStart = isFiniteNumber(line.start_s) ? line.start_s + offset : undefined;
+    if (!isFiniteNumber(rawStart)) {
+      continue;
+    }
+
+    let start = rawStart;
+    if (start < lastStart) {
+      start = lastStart;
+    }
+
+    let end = isFiniteNumber(line.end_s) ? line.end_s + offset : undefined;
+    if (!isFiniteNumber(end) || end <= start) {
+      let nextStart: number | undefined;
+      for (let nextIndex = index + 1; nextIndex < scaledLines.length; nextIndex += 1) {
+        const candidateStart = scaledLines[nextIndex].start_s;
+        if (isFiniteNumber(candidateStart)) {
+          nextStart = candidateStart + offset;
+          break;
+        }
+      }
+
+      if (isFiniteNumber(nextStart) && nextStart > start) {
+        end = nextStart;
+      } else {
+        end = start + fallbackDuration;
+      }
+    }
+
+    if (isFiniteNumber(durationS)) {
+      if (start > durationS) {
+        start = durationS;
+      }
+      if (end > durationS) {
+        end = durationS;
+      }
+    }
+
+    if (end < start + 0.02) {
+      end = start + 0.02;
+    }
+
+    normalized.push({
+      text,
+      start_s: roundToMillis(start),
+      end_s: roundToMillis(end)
+    });
+    lastStart = start;
+  }
+
+  return normalized;
+}
+
+function buildAlignedLyricsTimings(
+  alignedLyrics: AlignedLine[],
+  durationS?: number
+): {
+  lines: LineTiming[];
+  source: 'words' | 'lines';
+  score: TimingScore;
+  scale: number;
+  usedRelativeExpansion: boolean;
+} {
+  const wordTimings = deriveTimingsFromWords(alignedLyrics);
+  const lineTimings = deriveTimingsFromLines(alignedLyrics);
+  const chosen = chooseTimingSource(wordTimings, lineTimings);
+
+  let baseTimings = chosen.timings;
+  const usedRelativeExpansion = looksLikeRelativeLineTimings(baseTimings, durationS);
+  if (usedRelativeExpansion) {
+    baseTimings = expandRelativeTimings(baseTimings, durationS);
+  }
+
+  const allTimes = baseTimings.reduce<number[]>((acc, line) => {
+    if (isFiniteNumber(line.start_s)) {
+      acc.push(line.start_s);
+    }
+    if (isFiniteNumber(line.end_s)) {
+      acc.push(line.end_s);
+    }
+    return acc;
+  }, []);
+  const scale = allTimes.length > 0 ? inferScale(allTimes, durationS) : 1;
+  const normalized = normalizeTimings(baseTimings, durationS);
+
+  return {
+    lines: normalized,
+    source: chosen.source,
+    score: chosen.score,
+    scale,
+    usedRelativeExpansion
+  };
+}
+
 function injectStyles() {
-  if (document.getElementById('suno-lyric-downloader-styles')) return;
+  console.info('[SunoLyric] 🎨 Checking if styles are already injected...');
+  if (document.getElementById('suno-lyric-downloader-styles')) {
+    console.info('[SunoLyric] ✅ Styles already exist, skipping injection');
+    return;
+  }
+  console.info('[SunoLyric] 📝 Injecting CSS styles...');
   const style = document.createElement('style');
   style.id = 'suno-lyric-downloader-styles';
   style.textContent = STYLES;
   document.head.appendChild(style);
+  console.info('[SunoLyric] ✅ Styles injected successfully');
 }
 
 function getCookie(name: string): string | undefined {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
-  return parts.length === 2 ? parts.pop()?.split(';').shift() : undefined;
+
+  // Handle multiple cookies with the same name - take the last one (most recent)
+  if (parts.length >= 2) {
+    const lastPart = parts[parts.length - 1];
+    return lastPart.split(';').shift();
+  }
+
+  return undefined;
+}
+
+async function fetchClipMetadata(songId: string, token: string): Promise<ClipMetadata | null> {
+  try {
+    const clipResponse = await fetch(`${API_BASE_URL}/clip/${songId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!clipResponse.ok) {
+      return null;
+    }
+
+    return await clipResponse.json();
+  } catch (error) {
+    console.error('[SunoLyric] ❌ Error fetching clip metadata:', error);
+    return null;
+  }
 }
 
 async function fetchLyrics(songId: string, token: string): Promise<LyricsData | null> {
+  console.info(`[SunoLyric] 🎵 Fetching lyrics for song: ${songId}`);
   if (lyricsCache.has(songId)) {
+    console.info(`[SunoLyric] ♻️ Using cached lyrics for ${songId}`);
     return lyricsCache.get(songId)!;
   }
 
   try {
+    let clipData: ClipMetadata | null = null;
+    const ensureClipData = async () => {
+      if (clipData) {
+        return clipData;
+      }
+      clipData = await fetchClipMetadata(songId, token);
+      return clipData;
+    };
+
     // 1. Try fetching aligned lyrics first
+    console.info(`[SunoLyric] 📡 Fetching aligned lyrics from API...`);
     const alignedResponse = await fetch(`${GEN_API_URL}/${songId}/aligned_lyrics/v2/`, {
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -120,58 +565,40 @@ async function fetchLyrics(songId: string, token: string): Promise<LyricsData | 
     if (alignedResponse.ok) {
       const data: ApiResponse = await alignedResponse.json();
 
-      if (data.aligned_lyrics && data.aligned_lyrics.length > 0) {
-        // User's pattern: cumulative sum of (end_s × 10) gives each line's START time
-        let cumulativeTime = 0;
-        const tempLines = data.aligned_lyrics.map((line) => {
-          // Add this line's duration to cumulative time FIRST
-          cumulativeTime += line.end_s * 10;
+      const alignedLyrics = Array.isArray(data.aligned_lyrics)
+        ? data.aligned_lyrics
+        : Array.isArray((data as any)?.data?.aligned_lyrics)
+          ? (data as any).data.aligned_lyrics
+          : [];
 
-          // Round to 2 decimal places
-          const lineStart = Math.round(cumulativeTime * 100) / 100;
+      if (alignedLyrics.length > 0) {
+        let durationS = extractDurationSeconds(data);
+        if (!isFiniteNumber(durationS)) {
+          const clip = await ensureClipData();
+          durationS = extractDurationSeconds(clip);
+        }
 
+        const timingResult = buildAlignedLyricsTimings(alignedLyrics, durationS);
+        console.info(
+          `[SunoLyric] ⏱️ Timing source: ${timingResult.source}, valid=${timingResult.score.validCount}/${alignedLyrics.length}, breaks=${timingResult.score.monotonicBreaks}`
+        );
+        console.info(
+          `[SunoLyric] ⏱️ Duration=${isFiniteNumber(durationS) ? durationS.toFixed(2) + 's' : 'n/a'}, scale=${timingResult.scale}, relative=${timingResult.usedRelativeExpansion}`
+        );
 
-          return {
-            text: line.text,
-            start_s: lineStart
-          };
-        });
-
-        // Step 2: Calculate end times based on next line's start time
-        const alignedWordsWithAbsoluteTime = tempLines.map((line, index) => {
-          let lineEnd;
-          if (index < tempLines.length - 1) {
-            lineEnd = tempLines[index + 1].start_s;
-          } else {
-            lineEnd = line.start_s + 5; // 5s buffer for last line
-          }
-
-          return {
-            text: line.text,
-            start_s: line.start_s,
-            end_s: lineEnd
-          };
-        });
-
-        console.log(`✅ TotalLines: ${alignedWordsWithAbsoluteTime.length}, Final Cumulative Time: ${cumulativeTime.toFixed(2)}s`);
-
-        const lyricsData: LyricsData = { type: 'aligned', data: alignedWordsWithAbsoluteTime };
-        lyricsCache.set(songId, lyricsData);
-        return lyricsData;
+        if (timingResult.lines.length > 0) {
+          console.info(`[SunoLyric] ✅ Found aligned lyrics: ${timingResult.lines.length} lines`);
+          const lyricsData: LyricsData = { type: 'aligned', data: timingResult.lines };
+          lyricsCache.set(songId, lyricsData);
+          return lyricsData;
+        }
       }
     }
 
     // 2. Fallback to clip metadata for plain lyrics
-    const clipResponse = await fetch(`${API_BASE_URL}/clip/${songId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (clipResponse.ok) {
-      const clipData: ClipMetadata = await clipResponse.json();
-      const prompt = clipData.metadata?.prompt;
+    const fallbackClip = await ensureClipData();
+    if (fallbackClip) {
+      const prompt = fallbackClip.metadata?.prompt;
       if (prompt) {
         const lyricsData: LyricsData = { type: 'plain', data: prompt };
         lyricsCache.set(songId, lyricsData);
@@ -179,10 +606,10 @@ async function fetchLyrics(songId: string, token: string): Promise<LyricsData | 
       }
     }
 
-    console.debug(`No lyrics found for song ${songId}`);
+    console.info(`[SunoLyric] ⚠️ No lyrics found for song ${songId}`);
     return null;
   } catch (error) {
-    console.error('Error fetching lyrics:', error);
+    console.error('[SunoLyric] ❌ Error fetching lyrics:', error);
     return null;
   }
 }
@@ -228,8 +655,8 @@ function createToolsOverlay(songId: string, lyrics: LyricsData): HTMLElement {
       e.stopPropagation();
 
       // Only use aligned words data - no fake timestamps
-      const alignedWords = lyrics.data as AlignedWord[];
-      const content = currentFileType === 'srt' ? convertToSRT(alignedWords) : convertToLRC(alignedWords);
+      const alignedLines = lyrics.data as LineTiming[];
+      const content = currentFileType === 'srt' ? convertToSRT(alignedLines) : convertToLRC(alignedLines);
 
       const extName = chrome.i18n.getMessage('extension_name') || 'SunoLyric';
       const fileName = `${songId}-lyrics-${extName.toLowerCase().replace(/\s+/g, '-')}.${currentFileType}`;
@@ -256,19 +683,19 @@ function createToolsOverlay(songId: string, lyrics: LyricsData): HTMLElement {
   return toolsBox;
 }
 
-function convertToSRT(alignedWords: AlignedWord[]): string {
-  return alignedWords
-    .map((word, index) => {
-      const startTime = formatSRTTime(word.start_s);
-      const endTime = formatSRTTime(word.end_s);
-      return `${index + 1}\n${startTime} --> ${endTime}\n${word.text}\n`;
+function convertToSRT(alignedLines: LineTiming[]): string {
+  return alignedLines
+    .map((line, index) => {
+      const startTime = formatSRTTime(line.start_s);
+      const endTime = formatSRTTime(line.end_s);
+      return `${index + 1}\n${startTime} --> ${endTime}\n${line.text}\n`;
     })
     .join('\n');
 }
 
-function convertToLRC(alignedWords: AlignedWord[]): string {
-  return alignedWords
-    .map(word => `${formatLRCTime(word.start_s)}${word.text}`)
+function convertToLRC(alignedLines: LineTiming[]): string {
+  return alignedLines
+    .map(line => `${formatLRCTime(line.start_s)}${line.text}`)
     .join('\n');
 }
 
@@ -301,46 +728,92 @@ function getSongIdFromUrl(): string {
 }
 
 async function processPage() {
+  console.info('[SunoLyric] 🔄 processPage() called');
+
   const songId = getSongIdFromUrl();
-  if (!songId) return;
+  console.info(`[SunoLyric] 🆔 Song ID from URL: "${songId}"`);
 
-  // Find the image container. This selector might need adjustment if Suno changes their DOM.
-  // We look for the image that represents the song art.
-  const imageElements = document.querySelectorAll<HTMLImageElement>(`div>img[src*="${songId}"].w-full.h-full`);
+  if (!songId) {
+    console.info('[SunoLyric] ⚠️ No song ID found, exiting');
+    return;
+  }
 
-  if (!imageElements.length) return;
+  // Find the image container using the alt attribute which is more reliable.
+  // The song cover image has alt="Song Cover Image" in Suno's current DOM structure.
+  const selector = `img[alt="Song Cover Image"].w-full.h-full`;
+  console.info(`[SunoLyric] 🔍 Looking for images with selector: "${selector}"`);
+  const imageElements = document.querySelectorAll<HTMLImageElement>(selector);
+  console.info(`[SunoLyric] 📸 Found ${imageElements.length} matching image(s)`);
+
+  if (!imageElements.length) {
+    console.info('[SunoLyric] ❌ No matching images found, exiting');
+    return;
+  }
+
+  // Debug: Show all available cookies
+  const allCookies = document.cookie;
+  console.info(`[SunoLyric] 🍪 All cookies: "${allCookies}"`);
 
   const sessionToken = getCookie('__session');
+  console.info(`[SunoLyric] 🔑 Session token (__session): ${sessionToken ? '✅ Found' : '❌ Missing'}`);
+
   if (!sessionToken) {
-    // No session, can't fetch lyrics yet.
+    console.info('[SunoLyric] ⚠️ No session token, cannot fetch lyrics');
+    console.info('[SunoLyric] 💡 Please make sure you are logged in to Suno.com');
     return;
   }
 
   // Fetch lyrics (cached if available)
+  console.info('[SunoLyric] 📥 Fetching lyrics...');
   const lyrics = await fetchLyrics(songId, sessionToken);
-  if (!lyrics) return;
 
-  // Only show download buttons for aligned lyrics with accurate timestamps
-  if (lyrics.type !== 'aligned') {
-    console.debug(`Song ${songId} only has plain lyrics without timestamps, skipping download UI`);
+  if (!lyrics) {
+    console.info('[SunoLyric] ❌ No lyrics data returned, exiting');
     return;
   }
 
-  imageElements.forEach((imageElement) => {
+  console.info(`[SunoLyric] 📄 Lyrics type: ${lyrics.type}`);
+
+  // Only show download buttons for aligned lyrics with accurate timestamps
+  if (lyrics.type !== 'aligned') {
+    console.info(`[SunoLyric] ⚠️ Song ${songId} has plain lyrics only (no timestamps), skipping UI`);
+    return;
+  }
+
+  console.info(`[SunoLyric] 🎯 Processing ${imageElements.length} image element(s)...`);
+
+  imageElements.forEach((imageElement, index) => {
+    console.info(`[SunoLyric] 🖼️ Processing image #${index + 1}`);
+
     const parent = imageElement.parentElement;
-    if (!parent) return;
+    if (!parent) {
+      console.info(`[SunoLyric] ⚠️ Image #${index + 1} has no parent, skipping`);
+      return;
+    }
+    console.info(`[SunoLyric] ✅ Image #${index + 1} parent found: ${parent.tagName}.${parent.className}`);
 
     // Check if we already injected the tools
-    if (parent.querySelector('.suno-lyric-downloader-overlay')) return;
+    const existing = parent.querySelector('.suno-lyric-downloader-overlay');
+    if (existing) {
+      console.info(`[SunoLyric] ♻️ Buttons already injected for image #${index + 1}, skipping`);
+      return;
+    }
 
     // Ensure parent has relative positioning for absolute child
     const computedStyle = window.getComputedStyle(parent);
+    console.info(`[SunoLyric] 📐 Parent position: ${computedStyle.position}`);
+
     if (computedStyle.position === 'static') {
+      console.info('[SunoLyric] 🔧 Setting parent position to relative');
       parent.style.position = 'relative';
     }
 
+    console.info(`[SunoLyric] 🎨 Creating and appending button overlay for image #${index + 1}...`);
     parent.appendChild(createToolsOverlay(songId, lyrics));
+    console.info(`[SunoLyric] ✅ Buttons injected successfully for image #${index + 1}!`);
   });
+
+  console.info('[SunoLyric] 🎉 processPage() completed!');
 }
 
 // Debounce function to limit how often processPage runs
@@ -359,9 +832,11 @@ function debounce(func: Function, wait: number) {
 const debouncedProcessPage = debounce(processPage, 500);
 
 function initObserver() {
+  console.info('[SunoLyric] 🚀 Initializing extension...');
   injectStyles();
 
   // Initial check
+  console.info('[SunoLyric] 🏁 Running initial page check...');
   processPage();
 
   const observer = new MutationObserver((mutations) => {
@@ -379,31 +854,45 @@ function initObserver() {
     }
 
     if (shouldProcess) {
+      console.info('[SunoLyric] 👀 DOM mutation detected, triggering processPage (debounced)');
       debouncedProcessPage();
     }
   });
 
+  console.info('[SunoLyric] 👁️ Setting up MutationObserver...');
   observer.observe(document.body, {
     childList: true,
     subtree: true,
     attributes: true,
     attributeFilter: ['src'] // Only watch src changes for images
   });
+  console.info('[SunoLyric] ✅ MutationObserver active');
 }
 
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((message) => {
+  console.info(`[SunoLyric] 📬 Message received:`, message);
   if (message.action === "URL_CHANGED") {
+    console.info('[SunoLyric] 🔄 URL changed, triggering processPage (debounced)');
     debouncedProcessPage();
   } else if (message.action === "MANUALLY_TRIGGER") {
+    console.info('[SunoLyric] 🔧 Manual trigger, running processPage immediately');
     processPage();
   }
   return false;
 });
 
 // Start
+console.info('[SunoLyric] 🎬 Content script loaded!');
+console.info(`[SunoLyric] 📄 Document readyState: ${document.readyState}`);
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initObserver);
+  console.info('[SunoLyric] ⏳ Waiting for DOMContentLoaded...');
+  document.addEventListener('DOMContentLoaded', () => {
+    console.info('[SunoLyric] ✅ DOMContentLoaded fired!');
+    initObserver();
+  });
 } else {
+  console.info('[SunoLyric] ➡️ DOM already loaded, initializing immediately');
   initObserver();
 }
