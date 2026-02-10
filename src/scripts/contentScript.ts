@@ -23,6 +23,7 @@ interface LineTiming {
 interface ApiResponse {
   aligned_lyrics?: AlignedLine[];
   aligned_words?: AlignedToken[];
+  waveform_data?: number[];
   duration_s?: number;
   duration?: number;
   // Add other possible fields that might contain duration
@@ -120,6 +121,60 @@ function roundToMillis(value: number): number {
   return Math.round(value * 1000) / 1000;
 }
 
+function sanitizeLyricText(text: string): string {
+  return text
+    .replace(/\r/g, '')
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, '')
+    .trim();
+}
+
+function normalizeLyricForMatch(text: string): string {
+  return sanitizeLyricText(text)
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[.,!?;:，。！？；：、'"“”‘’`~·\-—()\[\]{}]/g, '');
+}
+
+function isStructureLyricLine(text: string): boolean {
+  const cleaned = sanitizeLyricText(text);
+  return /^\[.*\]$/.test(cleaned) || /^\(.*\)$/.test(cleaned) || /^（.*）$/.test(cleaned);
+}
+
+function lyricUnits(text: string): number {
+  return normalizeLyricForMatch(text).length;
+}
+
+function estimateSecondsPerLyricUnit(alignedLines: LineTiming[]): number {
+  const samples = alignedLines
+    .filter((line) => !isStructureLyricLine(line.text))
+    .map((line) => {
+      const units = lyricUnits(line.text);
+      const duration = line.end_s - line.start_s;
+      if (units <= 0 || duration <= 0.1) {
+        return undefined;
+      }
+      return duration / units;
+    })
+    .filter((value): value is number => isFiniteNumber(value) && value > 0);
+
+  if (samples.length === 0) {
+    return 0.22;
+  }
+
+  const estimate = median(samples);
+  return Math.min(0.45, Math.max(0.08, estimate));
+}
+
+function estimateMissingLineDuration(line: string, secondsPerUnit: number): number {
+  if (isStructureLyricLine(line)) {
+    return 0.35;
+  }
+
+  const units = Math.max(1, lyricUnits(line));
+  const estimated = units * secondsPerUnit;
+  return Math.min(5, Math.max(0.7, estimated));
+}
+
 function getLineText(line: AlignedLine): string {
   const textCandidate =
     (typeof line.text === 'string' && line.text) ||
@@ -130,8 +185,8 @@ function getLineText(line: AlignedLine): string {
           .join('')
       : '');
 
-  const normalized = textCandidate.replace(/\r/g, '');
-  return normalized.trim().length > 0 ? normalized : '';
+  const normalized = sanitizeLyricText(textCandidate);
+  return normalized.length > 0 ? normalized : '';
 }
 
 function deriveTimingsFromWords(lines: AlignedLine[]): RawLineTiming[] {
@@ -148,6 +203,15 @@ function deriveTimingsFromWords(lines: AlignedLine[]): RawLineTiming[] {
         text: getLineText(line),
         start_s: Math.min(...wordStarts),
         end_s: Math.max(...wordEnds)
+      };
+    }
+
+    // Some payloads miss per-word timing for specific lines while line-level timing still exists.
+    if (isFiniteNumber(line.start_s) || isFiniteNumber(line.end_s)) {
+      return {
+        text: getLineText(line),
+        start_s: isFiniteNumber(line.start_s) ? line.start_s : undefined,
+        end_s: isFiniteNumber(line.end_s) ? line.end_s : undefined
       };
     }
 
@@ -216,8 +280,8 @@ function looksLikeRelativeLineTimings(lines: RawLineTiming[], durationS?: number
   return false;
 }
 
-function expandRelativeTimings(lines: RawLineTiming[], durationS?: number): RawLineTiming[] {
-  const durations = lines.map((line) => {
+function extractRelativeDurations(lines: RawLineTiming[]): number[] {
+  const candidates = lines.map((line) => {
     if (isFiniteNumber(line.start_s) && isFiniteNumber(line.end_s)) {
       const duration = line.end_s - line.start_s;
       return duration > 0 ? duration : undefined;
@@ -228,14 +292,20 @@ function expandRelativeTimings(lines: RawLineTiming[], durationS?: number): RawL
     return undefined;
   });
 
-  const validDurations = durations.filter((duration): duration is number => isFiniteNumber(duration) && duration > 0);
+  const validDurations = candidates.filter((duration): duration is number => isFiniteNumber(duration) && duration > 0);
   const fallbackDuration = validDurations.length > 0 ? median(validDurations) : 0.5;
-  const totalRelative = durations.reduce<number>((acc, duration) => acc + (duration ?? fallbackDuration), 0);
+
+  return candidates.map((duration) => (isFiniteNumber(duration) && duration > 0 ? duration : fallbackDuration));
+}
+
+function expandRelativeTimings(lines: RawLineTiming[], durationS?: number): RawLineTiming[] {
+  const durations = extractRelativeDurations(lines);
+  const totalRelative = durations.reduce<number>((acc, duration) => acc + duration, 0);
   const scale = isFiniteNumber(durationS) && totalRelative > 0 ? durationS / totalRelative : 1;
 
   let cursor = 0;
   return lines.map((line, index) => {
-    const duration = (durations[index] ?? fallbackDuration) * scale;
+    const duration = durations[index] * scale;
     const start = cursor;
     const end = start + duration;
     cursor = end;
@@ -245,6 +315,186 @@ function expandRelativeTimings(lines: RawLineTiming[], durationS?: number): RawL
       end_s: end
     };
   });
+}
+
+function percentile(values: number[], percent: number): number {
+  if (values.length === 0) {
+    return 0;
+  }
+
+  const sorted = [...values].sort((a, b) => a - b);
+  if (percent <= 0) {
+    return sorted[0];
+  }
+  if (percent >= 1) {
+    return sorted[sorted.length - 1];
+  }
+
+  const position = (sorted.length - 1) * percent;
+  const lower = Math.floor(position);
+  const upper = Math.ceil(position);
+  const fraction = position - lower;
+  return sorted[lower] * (1 - fraction) + sorted[upper] * fraction;
+}
+
+function smoothSeries(values: number[], radius: number): number[] {
+  if (radius <= 0 || values.length === 0) {
+    return [...values];
+  }
+
+  return values.map((_, index) => {
+    let sum = 0;
+    let count = 0;
+
+    const left = Math.max(0, index - radius);
+    const right = Math.min(values.length - 1, index + radius);
+    for (let cursor = left; cursor <= right; cursor += 1) {
+      sum += values[cursor];
+      count += 1;
+    }
+
+    return count > 0 ? sum / count : 0;
+  });
+}
+
+function lowerBound(sortedValues: number[], target: number): number {
+  let left = 0;
+  let right = sortedValues.length - 1;
+
+  while (left < right) {
+    const middle = Math.floor((left + right) / 2);
+    if (sortedValues[middle] < target) {
+      left = middle + 1;
+    } else {
+      right = middle;
+    }
+  }
+
+  return left;
+}
+
+function alignRelativeTimingsWithWaveform(
+  lines: RawLineTiming[],
+  durationS: number,
+  waveformData?: number[]
+): { lines: RawLineTiming[]; usedWaveform: boolean } {
+  if (!Array.isArray(waveformData) || waveformData.length < 2 || !isFiniteNumber(durationS) || durationS <= 0) {
+    return { lines: expandRelativeTimings(lines, durationS), usedWaveform: false };
+  }
+
+  const durations = extractRelativeDurations(lines);
+  const totalRelative = durations.reduce((acc, duration) => acc + duration, 0);
+  if (totalRelative <= 0) {
+    return { lines: expandRelativeTimings(lines, durationS), usedWaveform: false };
+  }
+
+  const sanitized = waveformData.map((value) => (isFiniteNumber(value) && value > 0 ? value : 0));
+  const smoothed = smoothSeries(sanitized, 2);
+  const positive = smoothed.filter((value) => value > 0);
+  if (positive.length < 2) {
+    return { lines: expandRelativeTimings(lines, durationS), usedWaveform: false };
+  }
+
+  const low = percentile(positive, 0.2);
+  const high = percentile(positive, 0.85);
+  const activityThreshold = low + (high - low) * 0.22;
+  const firstActiveIndex = smoothed.findIndex((value) => value >= activityThreshold);
+  const lastActiveIndexFromEnd = [...smoothed].reverse().findIndex((value) => value >= activityThreshold);
+  const lastActiveIndex = lastActiveIndexFromEnd >= 0 ? smoothed.length - 1 - lastActiveIndexFromEnd : -1;
+
+  if (firstActiveIndex < 0 || lastActiveIndex <= firstActiveIndex) {
+    return { lines: expandRelativeTimings(lines, durationS), usedWaveform: false };
+  }
+
+  const totalBuckets = Math.max(smoothed.length - 1, 1);
+  const secondsPerBucket = durationS / totalBuckets;
+  const leadInBuckets = Math.min(
+    firstActiveIndex,
+    Math.max(1, Math.round(0.2 / Math.max(secondsPerBucket, 1e-6)))
+  );
+  const leadOutBuckets = Math.max(1, Math.round(0.3 / Math.max(secondsPerBucket, 1e-6)));
+  const windowStartIndex = Math.max(0, firstActiveIndex - leadInBuckets);
+  const windowEndIndex = Math.min(smoothed.length - 1, lastActiveIndex + leadOutBuckets);
+
+  if (windowEndIndex - windowStartIndex < 8) {
+    return { lines: expandRelativeTimings(lines, durationS), usedWaveform: false };
+  }
+
+  const windowSeries = smoothed.slice(windowStartIndex, windowEndIndex + 1);
+  const threshold = low + (high - low) * 0.15;
+  const dynamicRange = Math.max(high - threshold, 1e-6);
+
+  const weights = windowSeries.map((value) => {
+    const lifted = Math.max(value - threshold, 0) / dynamicRange;
+    const emphasized = Math.pow(lifted, 1.25);
+    return 0.005 + emphasized;
+  });
+
+  const cumulative: number[] = [];
+  let cumulativeWeight = 0;
+  weights.forEach((weight) => {
+    cumulativeWeight += weight;
+    cumulative.push(cumulativeWeight);
+  });
+
+  if (cumulativeWeight <= 0) {
+    return { lines: expandRelativeTimings(lines, durationS), usedWaveform: false };
+  }
+
+  const boundaries: number[] = [(windowStartIndex / totalBuckets) * durationS];
+  const windowDenominator = Math.max(weights.length - 1, 1);
+  let relativeCursor = 0;
+
+  durations.forEach((duration) => {
+    relativeCursor += duration;
+    const target = (relativeCursor / totalRelative) * cumulativeWeight;
+    const bucketIndex = lowerBound(cumulative, target);
+    const previousValue = bucketIndex > 0 ? cumulative[bucketIndex - 1] : 0;
+    const currentValue = cumulative[bucketIndex];
+    const bucketFraction = currentValue > previousValue ? (target - previousValue) / (currentValue - previousValue) : 0;
+    const waveformIndex = Math.min(bucketIndex + bucketFraction, windowDenominator);
+    const absoluteIndex = windowStartIndex + waveformIndex;
+    boundaries.push((absoluteIndex / totalBuckets) * durationS);
+  });
+
+  boundaries[boundaries.length - 1] = (windowEndIndex / totalBuckets) * durationS;
+
+  const minStep = 0.02;
+  for (let index = 1; index < boundaries.length; index += 1) {
+    if (boundaries[index] < boundaries[index - 1] + minStep) {
+      boundaries[index] = boundaries[index - 1] + minStep;
+    }
+  }
+
+  const windowEndTime = (windowEndIndex / totalBuckets) * durationS;
+  const timelineEnd = boundaries[boundaries.length - 1];
+  if (timelineEnd > windowEndTime) {
+    const startTime = boundaries[0];
+    const currentRange = Math.max(timelineEnd - startTime, minStep);
+    const targetRange = Math.max(windowEndTime - startTime, minStep);
+    const scale = targetRange / currentRange;
+
+    for (let index = 1; index < boundaries.length; index += 1) {
+      boundaries[index] = startTime + (boundaries[index] - startTime) * scale;
+      if (boundaries[index] < boundaries[index - 1] + minStep) {
+        boundaries[index] = boundaries[index - 1] + minStep;
+      }
+    }
+    boundaries[boundaries.length - 1] = windowEndTime;
+  }
+
+  return {
+    lines: lines.map((line, index) => {
+      const start = boundaries[index];
+      const end = Math.max(boundaries[index + 1], start + minStep);
+      return {
+        text: line.text,
+        start_s: start,
+        end_s: end
+      };
+    }),
+    usedWaveform: true
+  };
 }
 
 function chooseTimingSource(
@@ -397,11 +647,7 @@ function normalizeTimings(lines: RawLineTiming[], durationS?: number): LineTimin
     const line = scaledLines[index];
     const text = line.text;
     const rawStart = isFiniteNumber(line.start_s) ? line.start_s + offset : undefined;
-    if (!isFiniteNumber(rawStart)) {
-      continue;
-    }
-
-    let start = rawStart;
+    let start = isFiniteNumber(rawStart) ? rawStart : lastStart;
     if (start < lastStart) {
       start = lastStart;
     }
@@ -448,15 +694,263 @@ function normalizeTimings(lines: RawLineTiming[], durationS?: number): LineTimin
   return normalized;
 }
 
+function parsePromptLines(prompt: string): string[] {
+  return prompt
+    .split(/\r?\n/)
+    .map((line) => sanitizeLyricText(line))
+    .filter((line) => line.length > 0);
+}
+
+function buildLineTimingsFromStarts(
+  lines: Array<{ text: string; start_s: number }>,
+  durationS?: number
+): LineTiming[] {
+  if (lines.length === 0) {
+    return [];
+  }
+
+  const normalizedStarts = lines.map((line) => ({
+    text: sanitizeLyricText(line.text),
+    start_s: isFiniteNumber(line.start_s) ? line.start_s : 0
+  }));
+
+  const startDiffs = normalizedStarts
+    .slice(1)
+    .map((line, index) => line.start_s - normalizedStarts[index].start_s)
+    .filter((diff) => diff > 0.05);
+  const fallbackDuration = startDiffs.length > 0 ? median(startDiffs) : 2.5;
+
+  const sanitizedStarts: Array<{ text: string; start_s: number }> = [];
+  let lastStart = 0;
+  normalizedStarts.forEach((line, index) => {
+    if (!line.text) {
+      return;
+    }
+
+    let start = Math.max(0, line.start_s);
+    if (index > 0 && start < lastStart) {
+      start = lastStart;
+    }
+    if (isFiniteNumber(durationS) && start > durationS) {
+      start = durationS;
+    }
+
+    sanitizedStarts.push({
+      text: line.text,
+      start_s: roundToMillis(start)
+    });
+    lastStart = start;
+  });
+
+  if (sanitizedStarts.length === 0) {
+    return [];
+  }
+
+  return sanitizedStarts.map((line, index) => {
+    let end = index < sanitizedStarts.length - 1
+      ? sanitizedStarts[index + 1].start_s
+      : line.start_s + fallbackDuration;
+
+    if (isFiniteNumber(durationS) && end > durationS) {
+      end = durationS;
+    }
+    if (end < line.start_s + 0.02) {
+      end = line.start_s + 0.02;
+    }
+
+    return {
+      text: line.text,
+      start_s: line.start_s,
+      end_s: roundToMillis(end)
+    };
+  });
+}
+
+function repairMissingPromptLines(
+  alignedLines: LineTiming[],
+  prompt?: string,
+  durationS?: number
+): { lines: LineTiming[]; insertedCount: number } {
+  if (!prompt || alignedLines.length < 2) {
+    return { lines: alignedLines, insertedCount: 0 };
+  }
+
+  const promptLines = parsePromptLines(prompt);
+  if (promptLines.length === 0) {
+    return { lines: alignedLines, insertedCount: 0 };
+  }
+  const secondsPerUnit = estimateSecondsPerLyricUnit(alignedLines);
+
+  const alignedStarts = alignedLines.map((line) => ({
+    text: sanitizeLyricText(line.text),
+    start_s: line.start_s
+  }));
+  const promptNormalized = promptLines.map((line) => normalizeLyricForMatch(line));
+
+  let promptCursor = 0;
+  const matchedPromptIndexes = alignedStarts.map((line) => {
+    const normalizedLine = normalizeLyricForMatch(line.text);
+    if (!normalizedLine) {
+      return -1;
+    }
+
+    for (let index = promptCursor; index < promptNormalized.length; index += 1) {
+      const candidate = promptNormalized[index];
+      if (!candidate) {
+        continue;
+      }
+
+      if (
+        candidate === normalizedLine ||
+        candidate.includes(normalizedLine) ||
+        normalizedLine.includes(candidate)
+      ) {
+        promptCursor = index + 1;
+        return index;
+      }
+    }
+
+    return -1;
+  });
+
+  const firstMatchedLineIndex = matchedPromptIndexes.findIndex((index) => index >= 0);
+  if (firstMatchedLineIndex < 0) {
+    return { lines: alignedLines, insertedCount: 0 };
+  }
+
+  const pushMissingLines = (
+    target: Array<{ text: string; start_s: number }>,
+    missingLines: string[],
+    windowStart: number,
+    windowEnd: number
+  ) => {
+    if (missingLines.length === 0) {
+      return 0;
+    }
+
+    const minimumDuration = 0.18;
+    const available = Math.max(0, windowEnd - windowStart);
+    if (available <= minimumDuration) {
+      target.push({
+        text: missingLines[missingLines.length - 1],
+        start_s: Math.max(0, windowEnd - minimumDuration)
+      });
+      return 1;
+    }
+
+    const expectedDurations = missingLines.map((line) =>
+      Math.max(minimumDuration, estimateMissingLineDuration(line, secondsPerUnit))
+    );
+
+    let totalDuration = expectedDurations.reduce((acc, duration) => acc + duration, 0);
+    if (totalDuration > available) {
+      const scale = available / totalDuration;
+      for (let index = 0; index < expectedDurations.length; index += 1) {
+        expectedDurations[index] = Math.max(minimumDuration, expectedDurations[index] * scale);
+      }
+      totalDuration = expectedDurations.reduce((acc, duration) => acc + duration, 0);
+    }
+
+    if (totalDuration > available) {
+      const overflow = totalDuration - available;
+      let adjustable = expectedDurations.reduce(
+        (acc, duration) => acc + Math.max(0, duration - minimumDuration),
+        0
+      );
+      if (adjustable > 0 && overflow > 0) {
+        for (let index = 0; index < expectedDurations.length; index += 1) {
+          const room = Math.max(0, expectedDurations[index] - minimumDuration);
+          const deduction = Math.min(room, (room / adjustable) * overflow);
+          expectedDurations[index] -= deduction;
+        }
+      }
+      totalDuration = expectedDurations.reduce((acc, duration) => acc + duration, 0);
+    }
+
+    let cursor = Math.max(windowStart, windowEnd - totalDuration);
+    missingLines.forEach((missingLine, missingIndex) => {
+      target.push({
+        text: missingLine,
+        start_s: cursor
+      });
+      cursor += expectedDurations[missingIndex];
+    });
+
+    return missingLines.length;
+  };
+
+  const rebuiltStarts: Array<{ text: string; start_s: number }> = [];
+  let previousMatchedPrompt = -1;
+  let insertedCount = 0;
+
+  for (let index = 0; index < alignedStarts.length; index += 1) {
+    const line = alignedStarts[index];
+    const currentMatchedPrompt = matchedPromptIndexes[index];
+
+    if (index === firstMatchedLineIndex && currentMatchedPrompt > 0) {
+      const leadingCandidates = promptLines.slice(0, currentMatchedPrompt);
+      const currentNorm = normalizeLyricForMatch(line.text);
+      const missingLeading = leadingCandidates.filter((candidate) => normalizeLyricForMatch(candidate) !== currentNorm);
+
+      if (missingLeading.length > 0) {
+        const windowEnd = line.start_s;
+        const estimatedLeadWindow = Math.max(1.2, missingLeading.length * 0.9);
+        const windowStart = Math.max(0, windowEnd - estimatedLeadWindow);
+        insertedCount += pushMissingLines(rebuiltStarts, missingLeading, windowStart, windowEnd);
+      }
+    }
+
+    if (
+      currentMatchedPrompt >= 0 &&
+      previousMatchedPrompt >= 0 &&
+      currentMatchedPrompt - previousMatchedPrompt > 1
+    ) {
+      const missingCandidates = promptLines.slice(previousMatchedPrompt + 1, currentMatchedPrompt);
+      const currentNorm = normalizeLyricForMatch(line.text);
+      const previousNorm = rebuiltStarts.length > 0
+        ? normalizeLyricForMatch(rebuiltStarts[rebuiltStarts.length - 1].text)
+        : '';
+      const missingLines = missingCandidates.filter((missingLine) => {
+        const normalizedMissing = normalizeLyricForMatch(missingLine);
+        return normalizedMissing.length > 0 && normalizedMissing !== previousNorm && normalizedMissing !== currentNorm;
+      });
+
+      if (missingLines.length > 0) {
+        const windowEnd = line.start_s;
+        const windowStart = rebuiltStarts.length > 0
+          ? rebuiltStarts[rebuiltStarts.length - 1].start_s
+          : Math.max(0, windowEnd - Math.max(1, missingLines.length * 0.9));
+        insertedCount += pushMissingLines(rebuiltStarts, missingLines, windowStart, windowEnd);
+      }
+    }
+
+    rebuiltStarts.push(line);
+    if (currentMatchedPrompt >= 0) {
+      previousMatchedPrompt = currentMatchedPrompt;
+    }
+  }
+
+  if (insertedCount === 0) {
+    return { lines: alignedLines, insertedCount: 0 };
+  }
+
+  return {
+    lines: buildLineTimingsFromStarts(rebuiltStarts, durationS),
+    insertedCount
+  };
+}
+
 function buildAlignedLyricsTimings(
   alignedLyrics: AlignedLine[],
-  durationS?: number
+  durationS?: number,
+  waveformData?: number[]
 ): {
   lines: LineTiming[];
   source: 'words' | 'lines';
   score: TimingScore;
   scale: number;
   usedRelativeExpansion: boolean;
+  relativeMethod: 'none' | 'linear' | 'waveform';
 } {
   const wordTimings = deriveTimingsFromWords(alignedLyrics);
   const lineTimings = deriveTimingsFromLines(alignedLyrics);
@@ -464,8 +958,16 @@ function buildAlignedLyricsTimings(
 
   let baseTimings = chosen.timings;
   const usedRelativeExpansion = looksLikeRelativeLineTimings(baseTimings, durationS);
+  let relativeMethod: 'none' | 'linear' | 'waveform' = 'none';
   if (usedRelativeExpansion) {
-    baseTimings = expandRelativeTimings(baseTimings, durationS);
+    if (isFiniteNumber(durationS) && durationS > 0) {
+      const aligned = alignRelativeTimingsWithWaveform(baseTimings, durationS, waveformData);
+      baseTimings = aligned.lines;
+      relativeMethod = aligned.usedWaveform ? 'waveform' : 'linear';
+    } else {
+      baseTimings = expandRelativeTimings(baseTimings, durationS);
+      relativeMethod = 'linear';
+    }
   }
 
   const allTimes = baseTimings.reduce<number[]>((acc, line) => {
@@ -485,7 +987,8 @@ function buildAlignedLyricsTimings(
     source: chosen.source,
     score: chosen.score,
     scale,
-    usedRelativeExpansion
+    usedRelativeExpansion,
+    relativeMethod
   };
 }
 
@@ -570,6 +1073,11 @@ async function fetchLyrics(songId: string, token: string): Promise<LyricsData | 
         : Array.isArray((data as any)?.data?.aligned_lyrics)
           ? (data as any).data.aligned_lyrics
           : [];
+      const waveformData = Array.isArray(data.waveform_data)
+        ? data.waveform_data
+        : Array.isArray((data as any)?.data?.waveform_data)
+          ? (data as any).data.waveform_data
+          : undefined;
 
       if (alignedLyrics.length > 0) {
         let durationS = extractDurationSeconds(data);
@@ -578,17 +1086,30 @@ async function fetchLyrics(songId: string, token: string): Promise<LyricsData | 
           durationS = extractDurationSeconds(clip);
         }
 
-        const timingResult = buildAlignedLyricsTimings(alignedLyrics, durationS);
+        const timingResult = buildAlignedLyricsTimings(alignedLyrics, durationS, waveformData);
         console.info(
           `[SunoLyric] ⏱️ Timing source: ${timingResult.source}, valid=${timingResult.score.validCount}/${alignedLyrics.length}, breaks=${timingResult.score.monotonicBreaks}`
         );
         console.info(
-          `[SunoLyric] ⏱️ Duration=${isFiniteNumber(durationS) ? durationS.toFixed(2) + 's' : 'n/a'}, scale=${timingResult.scale}, relative=${timingResult.usedRelativeExpansion}`
+          `[SunoLyric] ⏱️ Duration=${isFiniteNumber(durationS) ? durationS.toFixed(2) + 's' : 'n/a'}, scale=${timingResult.scale}, relative=${timingResult.usedRelativeExpansion}, method=${timingResult.relativeMethod}`
         );
 
-        if (timingResult.lines.length > 0) {
-          console.info(`[SunoLyric] ✅ Found aligned lyrics: ${timingResult.lines.length} lines`);
-          const lyricsData: LyricsData = { type: 'aligned', data: timingResult.lines };
+        let repairedLines = timingResult.lines;
+        let insertedCount = 0;
+        const clip = await ensureClipData();
+        const repairResult = repairMissingPromptLines(
+          timingResult.lines,
+          clip?.metadata?.prompt,
+          durationS
+        );
+        repairedLines = repairResult.lines;
+        insertedCount = repairResult.insertedCount;
+
+        if (repairedLines.length > 0) {
+          console.info(
+            `[SunoLyric] ✅ Found aligned lyrics: ${repairedLines.length} lines${insertedCount > 0 ? ` (+${insertedCount} repaired from prompt)` : ''}`
+          );
+          const lyricsData: LyricsData = { type: 'aligned', data: repairedLines };
           lyricsCache.set(songId, lyricsData);
           return lyricsData;
         }
