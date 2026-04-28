@@ -58,47 +58,78 @@ const lyricsCache = new Map<string, LyricsData>();
 const STYLES = `
   .suno-lyric-downloader-btn {
     font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-    font-weight: 600;
+    font-weight: 700;
     text-align: center;
-    border-radius: 0.5rem;
+    border-radius: 999px;
     cursor: pointer;
-    background-color: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: rgba(12, 12, 14, 0.72);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     color: white;
-    padding: 0.6rem 1rem;
-    min-width: 0;
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-    display: block;
-    width: 100%;
+    padding: 0 0.65rem;
+    min-width: 2.75rem;
+    height: 2rem;
+    font-size: 0.75rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     text-shadow: 0 1px 2px rgba(0,0,0,0.2);
   }
+  .suno-lyric-downloader-btn[data-variant="download"] {
+    background-color: rgba(255, 255, 255, 0.92);
+    border-color: rgba(255, 255, 255, 0.72);
+    color: #111214;
+    text-shadow: none;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  }
   .suno-lyric-downloader-btn:hover {
-    background-color: rgba(255, 255, 255, 0.25);
-    border-color: rgba(255, 255, 255, 0.3);
+    background-color: rgba(255, 255, 255, 0.22);
+    border-color: rgba(255, 255, 255, 0.38);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+  .suno-lyric-downloader-btn[data-variant="download"]:hover {
+    background-color: #ffffff;
+    border-color: #ffffff;
   }
   .suno-lyric-downloader-btn:active {
     transform: translateY(0);
     background-color: rgba(255, 255, 255, 0.2);
   }
+  .suno-lyric-downloader-btn:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.95);
+    outline-offset: 2px;
+  }
+  .suno-lyric-downloader-icon {
+    width: 0.875rem;
+    height: 0.875rem;
+    flex: 0 0 auto;
+  }
   .suno-lyric-downloader-overlay {
     position: absolute;
-    bottom: 0;
+    top: 0;
     left: 0;
     width: 100%;
     display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 12px;
-    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 100%);
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 10px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.58) 0%, rgba(0,0,0,0.24) 64%, rgba(0,0,0,0) 100%);
     backdrop-filter: blur(4px);
     z-index: 10;
     box-sizing: border-box;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+  }
+  .suno-lyric-downloader-overlay .suno-lyric-downloader-btn {
+    pointer-events: auto;
   }
 `;
 
@@ -1135,10 +1166,48 @@ async function fetchLyrics(songId: string, token: string): Promise<LyricsData | 
   }
 }
 
-function createButton(text: string, onClick: (e: MouseEvent) => void): HTMLButtonElement {
+function createDownloadIcon(): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'suno-lyric-downloader-icon');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2.2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+
+  const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  arrow.setAttribute('d', 'M12 3v12m0 0 4-4m-4 4-4-4');
+  const tray = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  tray.setAttribute('d', 'M5 21h14');
+
+  svg.appendChild(arrow);
+  svg.appendChild(tray);
+  return svg;
+}
+
+function createButton(
+  text: string,
+  onClick: (e: MouseEvent) => void,
+  options: { ariaLabel?: string; variant?: 'default' | 'download'; icon?: SVGSVGElement } = {}
+): HTMLButtonElement {
   const button = document.createElement('button');
-  button.innerText = text;
   button.className = 'suno-lyric-downloader-btn';
+  button.type = 'button';
+  if (options.variant) {
+    button.dataset.variant = options.variant;
+  }
+  if (options.ariaLabel) {
+    button.setAttribute('aria-label', options.ariaLabel);
+    button.title = options.ariaLabel;
+  }
+  if (options.icon) {
+    button.appendChild(options.icon);
+  }
+  const label = document.createElement('span');
+  label.innerText = text;
+  button.appendChild(label);
   button.addEventListener('click', onClick);
   return button;
 }
@@ -1154,53 +1223,38 @@ function downloadFile(content: string, fileName: string, mimeType: string): void
 }
 
 function createToolsOverlay(songId: string, lyrics: LyricsData): HTMLElement {
-  const isAligned = lyrics.type === 'aligned';
-  let currentFileType: FileType = 'lrc';
-
   const toolsBox = document.createElement('div');
   toolsBox.className = 'suno-lyric-downloader-overlay';
   // Mark this container to prevent duplicates
   toolsBox.dataset.sunoLyricDownloader = 'true';
 
-  const getDownloadText = (type: FileType) => chrome.i18n.getMessage('download_lyric', [type.toUpperCase()]) || `Download ${type.toUpperCase()}`;
+  const getDownloadDescription = (type: FileType) =>
+    chrome.i18n.getMessage('download_lyric', [type.toUpperCase()]) || `Download ${type.toUpperCase()}`;
 
-  const getToggleText = (type: FileType) => {
-    const nextType = type === 'lrc' ? 'SRT' : 'LRC';
-    return chrome.i18n.getMessage('toggle_type', [nextType]) || `Switch to ${nextType}`;
-  };
-
-  const downloadButton = createButton(
-    getDownloadText(currentFileType),
-    (e) => {
+  const createFormatDownloadButton = (type: FileType) => createButton(
+    type.toUpperCase(),
+    (e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
 
       // Only use aligned words data - no fake timestamps
       const alignedLines = lyrics.data as LineTiming[];
-      const content = currentFileType === 'srt' ? convertToSRT(alignedLines) : convertToLRC(alignedLines);
+      const content = type === 'srt' ? convertToSRT(alignedLines) : convertToLRC(alignedLines);
 
       const extName = chrome.i18n.getMessage('extension_name') || 'SunoLyric';
-      const fileName = `${songId}-lyrics-${extName.toLowerCase().replace(/\s+/g, '-')}.${currentFileType}`;
+      const fileName = `${songId}-lyrics-${extName.toLowerCase().replace(/\s+/g, '-')}.${type}`;
 
-      downloadFile(content, fileName, `text/${currentFileType}`);
+      downloadFile(content, fileName, `text/${type}`);
+    },
+    {
+      ariaLabel: getDownloadDescription(type),
+      variant: 'download',
+      icon: createDownloadIcon()
     }
   );
 
-  const toggleButton = createButton(
-    getToggleText(currentFileType),
-    (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      currentFileType = currentFileType === 'lrc' ? 'srt' : 'lrc';
-
-      downloadButton.innerText = getDownloadText(currentFileType);
-      toggleButton.innerText = getToggleText(currentFileType);
-    }
-  );
-
-  toolsBox.appendChild(toggleButton);
-  toolsBox.appendChild(downloadButton);
+  toolsBox.appendChild(createFormatDownloadButton('lrc'));
+  toolsBox.appendChild(createFormatDownloadButton('srt'));
   return toolsBox;
 }
 
