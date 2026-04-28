@@ -129,6 +129,12 @@ No. The extension uses your existing Suno session in the browser. If you are not
 - Lyric processing and file generation happen locally in your browser.
 - The project does not run its own server and does not collect or upload your song data.
 
+### Support the Project
+
+Suno Lyric Downloader is free, open source, and maintained in my spare time. If this extension saves you time or becomes part of your workflow, you can support its ongoing development through [GitHub Sponsors](https://github.com/sponsors/zh30).
+
+Sponsorship is optional, but it helps me keep the extension updated as Suno changes, fix issues faster, and continue improving the user experience.
+
 ### Developer Commands
 
 ```bash
@@ -277,6 +283,12 @@ abc123-lyrics-suno-歌词下载器.srt
 - 插件使用你当前浏览器里的 Suno 登录状态，不会要求你输入账号或密码。
 - 歌词处理和文件生成在本地浏览器中完成。
 - 项目没有自己的服务器，也不会收集或上传你的歌曲数据。
+
+### 赞助支持
+
+Suno Lyric Downloader 是一个免费、开源，并由我长期维护的项目。如果这个插件节省了你的时间，或者已经成为你工作流的一部分，欢迎通过 [GitHub Sponsors](https://github.com/sponsors/zh30) 支持我继续维护它。
+
+赞助完全自愿，但它能帮助我在 Suno 页面或接口变化时更快适配，持续修复问题，并继续优化使用体验。
 
 ### 开发者命令
 
