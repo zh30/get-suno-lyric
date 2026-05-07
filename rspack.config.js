@@ -4,7 +4,10 @@ const path = require('path');
 const { defineConfig } = require('@rspack/cli');
 const rspack = require('@rspack/core');
 
-module.exports = (env, argv) => defineConfig({
+module.exports = (env, argv) => {
+  const isProduction = argv.mode === 'production';
+
+  return defineConfig({
   entry: {
     popup: './src/popup/popup.tsx',
     // sidePanel: './src/sidePanel/sidePanel.tsx',
@@ -15,6 +18,18 @@ module.exports = (env, argv) => defineConfig({
     path: path.resolve(__dirname, 'dist'),
     filename: '[name].js',
     clean: true,
+  },
+  cache: {
+    type: 'persistent',
+    buildDependencies: [
+      __filename,
+      path.resolve(__dirname, 'package.json'),
+      path.resolve(__dirname, 'pnpm-lock.yaml'),
+    ],
+    storage: {
+      type: 'filesystem',
+      directory: path.resolve(__dirname, 'node_modules/.cache/rspack'),
+    },
   },
   resolve: {
     extensions: ['.ts', '.tsx', '.js'],
@@ -30,6 +45,7 @@ module.exports = (env, argv) => defineConfig({
           loader: 'builtin:swc-loader',
           options: {
             jsc: {
+              target: 'es2020',
               parser: {
                 syntax: 'typescript',
                 tsx: true,
@@ -83,6 +99,7 @@ module.exports = (env, argv) => defineConfig({
   mode: argv.mode,
   devtool: false, // Disable all source maps to prevent CSP violations
   optimization: {
-    minimize: argv.mode === 'production',
+    minimize: isProduction,
   },
-});
+  });
+};
