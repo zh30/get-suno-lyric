@@ -48,7 +48,7 @@
     "description": "Popup status when the active tab is Suno but not a song page"
   },
   "popup_status_song_page": {
-    "message": "Página de canción detectada. Ya puedes buscar los botones de descarga.",
+    "message": "Página de canción detectada. Si no aparecen los botones, inicia sesión en Suno y actualiza esta página.",
     "description": "Popup status when the active tab is a Suno song page"
   },
   "popup_status_unknown": {
@@ -64,7 +64,7 @@
     "description": "Button label for manually finding injected download buttons"
   },
   "popup_feedback_triggered": {
-    "message": "Listo. Busca LRC y SRT en la parte superior de la portada.",
+    "message": "Listo. Si LRC y SRT no aparecen en la portada, inicia sesión en Suno y actualiza la página.",
     "description": "Feedback after manually triggering the content script"
   },
   "popup_feedback_trigger_failed": {
@@ -103,12 +103,20 @@
     "message": "Los botones aparecen arriba de la portada cuando se encuentran letras.",
     "description": "Step body for downloading lyrics"
   },
+  "popup_login_hint_title": {
+    "message": "¿Aún no hay botones?",
+    "description": "Title for the song page login hint in popup"
+  },
+  "popup_login_hint_body": {
+    "message": "Si no has iniciado sesión en Suno, la extensión no puede leer los datos de letras. Inicia sesión, actualiza la página de la canción y vuelve a intentarlo.",
+    "description": "Body text explaining that Suno login is required before buttons can appear"
+  },
   "popup_troubleshooting_heading": {
     "message": "Si no ves botones",
     "description": "Heading for popup troubleshooting tips"
   },
   "popup_troubleshooting_login": {
-    "message": "Asegúrate de haber iniciado sesión en Suno.",
+    "message": "Si no has iniciado sesión en Suno, los botones de descarga no aparecerán.",
     "description": "Troubleshooting tip for Suno login"
   },
   "popup_troubleshooting_song_page": {

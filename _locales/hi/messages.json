@@ -48,7 +48,7 @@
     "description": "Popup status when the active tab is Suno but not a song page"
   },
   "popup_status_song_page": {
-    "message": "गीत page मिल गया। अब download buttons खोज सकते हैं।",
+    "message": "गीत पेज मिला। अगर बटन नहीं दिखते हैं, तो Suno में साइन इन करें और इस पेज को रिफ्रेश करें।",
     "description": "Popup status when the active tab is a Suno song page"
   },
   "popup_status_unknown": {
@@ -64,7 +64,7 @@
     "description": "Button label for manually finding injected download buttons"
   },
   "popup_feedback_triggered": {
-    "message": "हो गया। गीत कवर के ऊपर LRC और SRT देखें।",
+    "message": "हो गया। अगर कवर पर LRC और SRT नहीं दिखते हैं, तो Suno में साइन इन करें और पेज रिफ्रेश करें।",
     "description": "Feedback after manually triggering the content script"
   },
   "popup_feedback_trigger_failed": {
@@ -103,12 +103,20 @@
     "message": "Lyrics मिलने के बाद buttons गीत कवर के ऊपर दिखते हैं।",
     "description": "Step body for downloading lyrics"
   },
+  "popup_login_hint_title": {
+    "message": "अभी तक बटन नहीं दिखे?",
+    "description": "Title for the song page login hint in popup"
+  },
+  "popup_login_hint_body": {
+    "message": "अगर आप Suno में साइन इन नहीं हैं, तो एक्सटेंशन गीत डेटा नहीं पढ़ सकता। साइन इन करें, गीत पेज रिफ्रेश करें, फिर दोबारा कोशिश करें।",
+    "description": "Body text explaining that Suno login is required before buttons can appear"
+  },
   "popup_troubleshooting_heading": {
     "message": "अगर buttons न दिखें",
     "description": "Heading for popup troubleshooting tips"
   },
   "popup_troubleshooting_login": {
-    "message": "पक्का करें कि आप Suno में sign in हैं।",
+    "message": "अगर आप Suno में साइन इन नहीं हैं, तो डाउनलोड बटन नहीं दिखेंगे।",
     "description": "Troubleshooting tip for Suno login"
   },
   "popup_troubleshooting_song_page": {

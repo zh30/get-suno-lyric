@@ -48,11 +48,10 @@ interface LyricsData {
 
 type FileType = 'lrc' | 'srt';
 
-const API_BASE_URL = 'https://studio-api.prod.suno.com/api';
-const GEN_API_URL = 'https://studio-api.prod.suno.com/api/gen';
-
 // Cache for API responses
 const lyricsCache = new Map<string, LyricsData>();
+let extensionContextInvalidated = false;
+let pageObserver: MutationObserver | null = null;
 
 // Styles
 const STYLES = `
@@ -146,6 +145,53 @@ interface TimingScore {
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isExtensionContextError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('Extension context invalidated');
+}
+
+function deactivateContentScript(): void {
+  if (extensionContextInvalidated) {
+    return;
+  }
+
+  extensionContextInvalidated = true;
+  pageObserver?.disconnect();
+  pageObserver = null;
+  console.info('[SunoLyric] ⚠️ Extension context invalidated. Content script paused until the page reloads.');
+}
+
+function isExtensionContextAvailable(): boolean {
+  if (extensionContextInvalidated) {
+    return false;
+  }
+
+  try {
+    return Boolean(chrome.runtime?.id);
+  } catch (error) {
+    if (isExtensionContextError(error)) {
+      deactivateContentScript();
+    }
+    return false;
+  }
+}
+
+function getI18nMessage(key: string, substitutions: string | string[] | undefined, fallback: string): string {
+  if (!isExtensionContextAvailable()) {
+    return fallback;
+  }
+
+  try {
+    return chrome.i18n.getMessage(key, substitutions) || fallback;
+  } catch (error) {
+    if (isExtensionContextError(error)) {
+      deactivateContentScript();
+    } else {
+      console.warn(`[SunoLyric] ⚠️ Could not read i18n message "${key}":`, error);
+    }
+    return fallback;
+  }
 }
 
 function roundToMillis(value: number): number {
@@ -1050,20 +1096,59 @@ function getCookie(name: string): string | undefined {
   return undefined;
 }
 
-async function fetchClipMetadata(songId: string, token: string): Promise<ClipMetadata | null> {
-  try {
-    const clipResponse = await fetch(`${API_BASE_URL}/clip/${songId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+interface SunoApiMessageResponse<T> {
+  ok: boolean;
+  status?: number;
+  data?: T;
+  error?: string;
+}
 
-    if (!clipResponse.ok) {
+async function fetchSunoApi<T>(path: string, token: string): Promise<T | null> {
+  if (!isExtensionContextAvailable()) {
+    return null;
+  }
+
+  const message: {
+    action: 'FETCH_SUNO_API';
+    path: string;
+    token: string;
+  } = {
+    action: 'FETCH_SUNO_API',
+    path,
+    token
+  };
+  let response: SunoApiMessageResponse<T> | undefined;
+  try {
+    response = await chrome.runtime.sendMessage(message) as SunoApiMessageResponse<T> | undefined;
+  } catch (error) {
+    if (isExtensionContextError(error)) {
+      deactivateContentScript();
       return null;
     }
 
-    return await clipResponse.json();
+    console.warn('[SunoLyric] ⚠️ Could not contact the extension service worker:', error);
+    return null;
+  }
+
+  if (!response?.ok || !response.data) {
+    if (response?.status === 401 || response?.status === 403) {
+      console.info(`[SunoLyric] ⚠️ Suno login is required before lyrics can be fetched: ${path}`);
+    } else {
+      console.warn(
+        `[SunoLyric] ⚠️ Suno API request failed: ${path}`,
+        response?.status ? `status=${response.status}` : '',
+        response?.error || ''
+      );
+    }
+    return null;
+  }
+
+  return response.data;
+}
+
+async function fetchClipMetadata(songId: string, token: string): Promise<ClipMetadata | null> {
+  try {
+    return await fetchSunoApi<ClipMetadata>(`/api/clip/${songId}`, token);
   } catch (error) {
     console.error('[SunoLyric] ❌ Error fetching clip metadata:', error);
     return null;
@@ -1089,16 +1174,9 @@ async function fetchLyrics(songId: string, token: string): Promise<LyricsData | 
 
     // 1. Try fetching aligned lyrics first
     console.info(`[SunoLyric] 📡 Fetching aligned lyrics from API...`);
-    const alignedResponse = await fetch(`${GEN_API_URL}/${songId}/aligned_lyrics/v2/`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    const data = await fetchSunoApi<ApiResponse>(`/api/gen/${songId}/aligned_lyrics/v2/`, token);
 
-    if (alignedResponse.ok) {
-      const data: ApiResponse = await alignedResponse.json();
-
+    if (data) {
       const alignedLyrics = Array.isArray(data.aligned_lyrics)
         ? data.aligned_lyrics
         : Array.isArray((data as any)?.data?.aligned_lyrics)
@@ -1229,7 +1307,7 @@ function createToolsOverlay(songId: string, lyrics: LyricsData): HTMLElement {
   toolsBox.dataset.sunoLyricDownloader = 'true';
 
   const getDownloadDescription = (type: FileType) =>
-    chrome.i18n.getMessage('download_lyric', [type.toUpperCase()]) || `Download ${type.toUpperCase()}`;
+    getI18nMessage('download_lyric', [type.toUpperCase()], `Download ${type.toUpperCase()}`);
 
   const createFormatDownloadButton = (type: FileType) => createButton(
     type.toUpperCase(),
@@ -1241,7 +1319,7 @@ function createToolsOverlay(songId: string, lyrics: LyricsData): HTMLElement {
       const alignedLines = lyrics.data as LineTiming[];
       const content = type === 'srt' ? convertToSRT(alignedLines) : convertToLRC(alignedLines);
 
-      const extName = chrome.i18n.getMessage('extension_name') || 'SunoLyric';
+      const extName = getI18nMessage('extension_name', undefined, 'SunoLyric');
       const fileName = `${songId}-lyrics-${extName.toLowerCase().replace(/\s+/g, '-')}.${type}`;
 
       downloadFile(content, fileName, `text/${type}`);
@@ -1303,6 +1381,10 @@ function getSongIdFromUrl(): string {
 }
 
 async function processPage() {
+  if (extensionContextInvalidated) {
+    return;
+  }
+
   console.info('[SunoLyric] 🔄 processPage() called');
 
   const songId = getSongIdFromUrl();
@@ -1391,20 +1473,33 @@ async function processPage() {
   console.info('[SunoLyric] 🎉 processPage() completed!');
 }
 
+function handleProcessPageError(error: unknown): void {
+  if (isExtensionContextError(error)) {
+    deactivateContentScript();
+    return;
+  }
+
+  console.warn('[SunoLyric] ⚠️ processPage failed:', error);
+}
+
+function runProcessPage(): void {
+  void processPage().catch(handleProcessPageError);
+}
+
 // Debounce function to limit how often processPage runs
-function debounce(func: Function, wait: number) {
-  let timeout: any;
-  return function executedFunction(...args: any[]) {
+function debounce(func: () => void, wait: number) {
+  let timeout: ReturnType<typeof setTimeout>;
+  return function executedFunction() {
     const later = () => {
       clearTimeout(timeout);
-      func(...args);
+      func();
     };
     clearTimeout(timeout);
     timeout = setTimeout(later, wait);
   };
 }
 
-const debouncedProcessPage = debounce(processPage, 500);
+const debouncedProcessPage = debounce(runProcessPage, 500);
 
 function initObserver() {
   console.info('[SunoLyric] 🚀 Initializing extension...');
@@ -1412,9 +1507,13 @@ function initObserver() {
 
   // Initial check
   console.info('[SunoLyric] 🏁 Running initial page check...');
-  processPage();
+  runProcessPage();
 
-  const observer = new MutationObserver((mutations) => {
+  pageObserver = new MutationObserver((mutations) => {
+    if (extensionContextInvalidated) {
+      return;
+    }
+
     let shouldProcess = false;
     for (const mutation of mutations) {
       if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
@@ -1435,7 +1534,7 @@ function initObserver() {
   });
 
   console.info('[SunoLyric] 👁️ Setting up MutationObserver...');
-  observer.observe(document.body, {
+  pageObserver.observe(document.body, {
     childList: true,
     subtree: true,
     attributes: true,
@@ -1452,7 +1551,7 @@ chrome.runtime.onMessage.addListener((message) => {
     debouncedProcessPage();
   } else if (message.action === "MANUALLY_TRIGGER") {
     console.info('[SunoLyric] 🔧 Manual trigger, running processPage immediately');
-    processPage();
+    runProcessPage();
   }
   return false;
 });
@@ -1471,3 +1570,5 @@ if (document.readyState === 'loading') {
   console.info('[SunoLyric] ➡️ DOM already loaded, initializing immediately');
   initObserver();
 }
+
+export {};

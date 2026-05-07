@@ -48,7 +48,7 @@
     "description": "Popup status when the active tab is Suno but not a song page"
   },
   "popup_status_song_page": {
-    "message": "曲ページを検出しました。ダウンロードボタンを探せます。",
+    "message": "曲ページを検出しました。ボタンが表示されない場合は、Suno にログインしてこのページを再読み込みしてください。",
     "description": "Popup status when the active tab is a Suno song page"
   },
   "popup_status_unknown": {
@@ -64,7 +64,7 @@
     "description": "Button label for manually finding injected download buttons"
   },
   "popup_feedback_triggered": {
-    "message": "完了しました。曲カバー上部の LRC と SRT を確認してください。",
+    "message": "完了しました。カバー上に LRC と SRT が表示されない場合は、Suno にログインしてページを再読み込みしてください。",
     "description": "Feedback after manually triggering the content script"
   },
   "popup_feedback_trigger_failed": {
@@ -103,12 +103,20 @@
     "message": "歌詞が見つかると、曲カバー上部にボタンが表示されます。",
     "description": "Step body for downloading lyrics"
   },
+  "popup_login_hint_title": {
+    "message": "まだボタンが表示されませんか？",
+    "description": "Title for the song page login hint in popup"
+  },
+  "popup_login_hint_body": {
+    "message": "Suno にログインしていない場合、拡張機能は歌詞データを読み取れません。ログインして曲ページを再読み込みしてから、もう一度お試しください。",
+    "description": "Body text explaining that Suno login is required before buttons can appear"
+  },
   "popup_troubleshooting_heading": {
     "message": "ボタンが見えない場合",
     "description": "Heading for popup troubleshooting tips"
   },
   "popup_troubleshooting_login": {
-    "message": "Suno にログインしていることを確認してください。",
+    "message": "Suno にログインしていない場合、ダウンロードボタンは表示されません。",
     "description": "Troubleshooting tip for Suno login"
   },
   "popup_troubleshooting_song_page": {

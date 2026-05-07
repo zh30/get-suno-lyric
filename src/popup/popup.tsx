@@ -21,11 +21,11 @@ const fallbackMessages: Record<string, string> = {
   popup_status_loading: 'Checking the current tab...',
   popup_status_not_suno: 'Open Suno and choose a song detail page to start.',
   popup_status_suno_page: 'You are on Suno. Open a song detail page whose URL starts with /song/.',
-  popup_status_song_page: 'Song page detected. You can search for the download buttons now.',
+  popup_status_song_page: 'Song page detected. If buttons do not appear, sign in to Suno and refresh this page.',
   popup_status_unknown: 'Open a Suno song detail page to use this extension.',
   popup_button_open_suno: 'Open Suno',
   popup_button_find_buttons: 'Find Download Buttons',
-  popup_feedback_triggered: 'Done. Look for LRC and SRT on the top of the song cover.',
+  popup_feedback_triggered: 'Done. If LRC and SRT do not appear on the cover, sign in to Suno and refresh the page.',
   popup_feedback_trigger_failed: 'Could not reach the Suno page. Refresh the tab, then try again.',
   popup_feedback_no_tab: 'No active browser tab was found.',
   popup_steps_heading: 'How to use',
@@ -35,8 +35,10 @@ const fallbackMessages: Record<string, string> = {
   popup_step_open_body: 'The URL should look like https://suno.com/song/...',
   popup_step_download_title: 'Click LRC or SRT',
   popup_step_download_body: 'The buttons appear at the top of the song cover after lyrics are found.',
+  popup_login_hint_title: 'No buttons yet?',
+  popup_login_hint_body: 'If you are not signed in to Suno, the extension cannot read lyric data. Sign in, refresh the song page, then try again.',
   popup_troubleshooting_heading: 'If you do not see buttons',
-  popup_troubleshooting_login: 'Make sure you are signed in to Suno.',
+  popup_troubleshooting_login: 'If you are not signed in to Suno, download buttons will not appear.',
   popup_troubleshooting_song_page: 'Use a song detail page, not the home, create, or playlist page.',
   popup_troubleshooting_cover: 'Wait for the song cover to finish loading, or refresh the page.',
   popup_troubleshooting_aligned: 'Some songs do not provide synchronized lyric timing data.',
@@ -188,6 +190,17 @@ function Popup() {
             </p>
           )}
         </div>
+
+        {currentTab.pageState === 'song_page' && (
+          <div className="mt-3 rounded-lg border border-amber-300/25 bg-amber-300/10 p-3">
+            <p className="text-[13px] font-bold leading-5 text-amber-100">
+              {getMessage('popup_login_hint_title')}
+            </p>
+            <p className="mt-1 text-[12px] leading-5 text-amber-50/90">
+              {getMessage('popup_login_hint_body')}
+            </p>
+          </div>
+        )}
 
         <section className="mt-5">
           <h2 className="text-[13px] font-bold uppercase tracking-normal text-neutral-300">

@@ -48,7 +48,7 @@
     "description": "Popup status when the active tab is Suno but not a song page"
   },
   "popup_status_song_page": {
-    "message": "Página de música detectada. Você já pode procurar os botões de download.",
+    "message": "Página da música detectada. Se os botões não aparecerem, entre no Suno e atualize esta página.",
     "description": "Popup status when the active tab is a Suno song page"
   },
   "popup_status_unknown": {
@@ -64,7 +64,7 @@
     "description": "Button label for manually finding injected download buttons"
   },
   "popup_feedback_triggered": {
-    "message": "Pronto. Procure LRC e SRT no topo da capa da música.",
+    "message": "Pronto. Se LRC e SRT não aparecerem na capa, entre no Suno e atualize a página.",
     "description": "Feedback after manually triggering the content script"
   },
   "popup_feedback_trigger_failed": {
@@ -103,12 +103,20 @@
     "message": "Os botões aparecem no topo da capa depois que as letras são encontradas.",
     "description": "Step body for downloading lyrics"
   },
+  "popup_login_hint_title": {
+    "message": "Ainda sem botões?",
+    "description": "Title for the song page login hint in popup"
+  },
+  "popup_login_hint_body": {
+    "message": "Se você não estiver conectado ao Suno, a extensão não consegue ler os dados da letra. Entre, atualize a página da música e tente novamente.",
+    "description": "Body text explaining that Suno login is required before buttons can appear"
+  },
   "popup_troubleshooting_heading": {
     "message": "Se você não vir botões",
     "description": "Heading for popup troubleshooting tips"
   },
   "popup_troubleshooting_login": {
-    "message": "Confirme que você está conectado ao Suno.",
+    "message": "Se você não estiver conectado ao Suno, os botões de download não aparecerão.",
     "description": "Troubleshooting tip for Suno login"
   },
   "popup_troubleshooting_song_page": {

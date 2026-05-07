@@ -48,7 +48,7 @@
     "description": "Popup status when the active tab is Suno but not a song page"
   },
   "popup_status_song_page": {
-    "message": "Song page detected. You can search for the download buttons now.",
+    "message": "Song page detected. If buttons do not appear, sign in to Suno and refresh this page.",
     "description": "Popup status when the active tab is a Suno song page"
   },
   "popup_status_unknown": {
@@ -64,7 +64,7 @@
     "description": "Button label for manually finding injected download buttons"
   },
   "popup_feedback_triggered": {
-    "message": "Done. Look for LRC and SRT on the top of the song cover.",
+    "message": "Done. If LRC and SRT do not appear on the cover, sign in to Suno and refresh the page.",
     "description": "Feedback after manually triggering the content script"
   },
   "popup_feedback_trigger_failed": {
@@ -103,12 +103,20 @@
     "message": "The buttons appear at the top of the song cover after lyrics are found.",
     "description": "Step body for downloading lyrics"
   },
+  "popup_login_hint_title": {
+    "message": "No buttons yet?",
+    "description": "Title for the song page login hint in popup"
+  },
+  "popup_login_hint_body": {
+    "message": "If you are not signed in to Suno, the extension cannot read lyric data. Sign in, refresh the song page, then try again.",
+    "description": "Body text explaining that Suno login is required before buttons can appear"
+  },
   "popup_troubleshooting_heading": {
     "message": "If you do not see buttons",
     "description": "Heading for popup troubleshooting tips"
   },
   "popup_troubleshooting_login": {
-    "message": "Make sure you are signed in to Suno.",
+    "message": "If you are not signed in to Suno, download buttons will not appear.",
     "description": "Troubleshooting tip for Suno login"
   },
   "popup_troubleshooting_song_page": {

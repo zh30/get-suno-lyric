@@ -48,7 +48,7 @@
     "description": "Popup status when the active tab is Suno but not a song page"
   },
   "popup_status_song_page": {
-    "message": "Страница песни обнаружена. Теперь можно найти кнопки загрузки.",
+    "message": "Страница песни обнаружена. Если кнопки не появляются, войдите в Suno и обновите эту страницу.",
     "description": "Popup status when the active tab is a Suno song page"
   },
   "popup_status_unknown": {
@@ -64,7 +64,7 @@
     "description": "Button label for manually finding injected download buttons"
   },
   "popup_feedback_triggered": {
-    "message": "Готово. Ищите LRC и SRT в верхней части обложки песни.",
+    "message": "Готово. Если LRC и SRT не появились на обложке, войдите в Suno и обновите страницу.",
     "description": "Feedback after manually triggering the content script"
   },
   "popup_feedback_trigger_failed": {
@@ -103,12 +103,20 @@
     "message": "Кнопки появляются сверху обложки после нахождения текста.",
     "description": "Step body for downloading lyrics"
   },
+  "popup_login_hint_title": {
+    "message": "Кнопок всё ещё нет?",
+    "description": "Title for the song page login hint in popup"
+  },
+  "popup_login_hint_body": {
+    "message": "Если вы не вошли в Suno, расширение не сможет прочитать данные текста. Войдите, обновите страницу песни и попробуйте снова.",
+    "description": "Body text explaining that Suno login is required before buttons can appear"
+  },
   "popup_troubleshooting_heading": {
     "message": "Если кнопок не видно",
     "description": "Heading for popup troubleshooting tips"
   },
   "popup_troubleshooting_login": {
-    "message": "Убедитесь, что вы вошли в Suno.",
+    "message": "Если вы не вошли в Suno, кнопки загрузки не появятся.",
     "description": "Troubleshooting tip for Suno login"
   },
   "popup_troubleshooting_song_page": {

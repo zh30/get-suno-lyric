@@ -48,7 +48,7 @@
     "description": "Popup status when the active tab is Suno but not a song page"
   },
   "popup_status_song_page": {
-    "message": "곡 페이지가 감지되었습니다. 이제 다운로드 버튼을 찾을 수 있습니다.",
+    "message": "곡 페이지를 감지했습니다. 버튼이 나타나지 않으면 Suno에 로그인한 뒤 이 페이지를 새로고침하세요.",
     "description": "Popup status when the active tab is a Suno song page"
   },
   "popup_status_unknown": {
@@ -64,7 +64,7 @@
     "description": "Button label for manually finding injected download buttons"
   },
   "popup_feedback_triggered": {
-    "message": "완료되었습니다. 곡 커버 상단에서 LRC와 SRT를 찾으세요.",
+    "message": "완료했습니다. 커버에 LRC와 SRT가 나타나지 않으면 Suno에 로그인한 뒤 페이지를 새로고침하세요.",
     "description": "Feedback after manually triggering the content script"
   },
   "popup_feedback_trigger_failed": {
@@ -103,12 +103,20 @@
     "message": "가사를 찾으면 곡 커버 상단에 버튼이 나타납니다.",
     "description": "Step body for downloading lyrics"
   },
+  "popup_login_hint_title": {
+    "message": "아직 버튼이 보이지 않나요?",
+    "description": "Title for the song page login hint in popup"
+  },
+  "popup_login_hint_body": {
+    "message": "Suno에 로그인하지 않으면 확장 프로그램이 가사 데이터를 읽을 수 없습니다. 로그인하고 곡 페이지를 새로고침한 뒤 다시 시도하세요.",
+    "description": "Body text explaining that Suno login is required before buttons can appear"
+  },
   "popup_troubleshooting_heading": {
     "message": "버튼이 보이지 않는 경우",
     "description": "Heading for popup troubleshooting tips"
   },
   "popup_troubleshooting_login": {
-    "message": "Suno에 로그인되어 있는지 확인하세요.",
+    "message": "Suno에 로그인하지 않으면 다운로드 버튼이 나타나지 않습니다.",
     "description": "Troubleshooting tip for Suno login"
   },
   "popup_troubleshooting_song_page": {

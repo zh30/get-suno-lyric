@@ -48,7 +48,7 @@
     "description": "Popup status when the active tab is Suno but not a song page"
   },
   "popup_status_song_page": {
-    "message": "تم اكتشاف صفحة أغنية. يمكنك الآن البحث عن أزرار التنزيل.",
+    "message": "تم اكتشاف صفحة الأغنية. إذا لم تظهر الأزرار، سجّل الدخول إلى Suno وحدّث هذه الصفحة.",
     "description": "Popup status when the active tab is a Suno song page"
   },
   "popup_status_unknown": {
@@ -64,7 +64,7 @@
     "description": "Button label for manually finding injected download buttons"
   },
   "popup_feedback_triggered": {
-    "message": "تم. ابحث عن LRC و SRT أعلى غلاف الأغنية.",
+    "message": "تم. إذا لم يظهر LRC و SRT على الغلاف، سجّل الدخول إلى Suno وحدّث الصفحة.",
     "description": "Feedback after manually triggering the content script"
   },
   "popup_feedback_trigger_failed": {
@@ -103,12 +103,20 @@
     "message": "تظهر الأزرار أعلى غلاف الأغنية بعد العثور على الكلمات.",
     "description": "Step body for downloading lyrics"
   },
+  "popup_login_hint_title": {
+    "message": "لم تظهر الأزرار بعد؟",
+    "description": "Title for the song page login hint in popup"
+  },
+  "popup_login_hint_body": {
+    "message": "إذا لم تكن مسجلاً الدخول إلى Suno، فلن يتمكن الامتداد من قراءة بيانات الكلمات. سجّل الدخول، وحدّث صفحة الأغنية، ثم جرّب مرة أخرى.",
+    "description": "Body text explaining that Suno login is required before buttons can appear"
+  },
   "popup_troubleshooting_heading": {
     "message": "إذا لم تظهر الأزرار",
     "description": "Heading for popup troubleshooting tips"
   },
   "popup_troubleshooting_login": {
-    "message": "تأكد من تسجيل الدخول إلى Suno.",
+    "message": "إذا لم تكن مسجلاً الدخول إلى Suno، فلن تظهر أزرار التنزيل.",
     "description": "Troubleshooting tip for Suno login"
   },
   "popup_troubleshooting_song_page": {

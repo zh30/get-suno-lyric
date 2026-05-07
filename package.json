@@ -1,6 +1,6 @@
 {
   "name": "get-suno-lyric",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "description": "A Chrome browser extension that downloads synchronized lyrics from Suno.com in LRC or SRT formats.",
   "main": "index.js",
   "scripts": {

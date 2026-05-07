@@ -48,7 +48,7 @@
     "description": "Popup status when the active tab is Suno but not a song page"
   },
   "popup_status_song_page": {
-    "message": "已检测到歌曲页。现在可以查找下载按钮。",
+    "message": "已检测到歌曲页。如果按钮没有出现，请先登录 Suno 并刷新此页面。",
     "description": "Popup status when the active tab is a Suno song page"
   },
   "popup_status_unknown": {
@@ -64,7 +64,7 @@
     "description": "Button label for manually finding injected download buttons"
   },
   "popup_feedback_triggered": {
-    "message": "已执行。请在歌曲封面顶部查找 LRC 和 SRT。",
+    "message": "已执行。如果封面顶部没有出现 LRC 和 SRT，请登录 Suno 并刷新页面。",
     "description": "Feedback after manually triggering the content script"
   },
   "popup_feedback_trigger_failed": {
@@ -103,12 +103,20 @@
     "message": "找到歌词后，按钮会出现在歌曲封面顶部。",
     "description": "Step body for downloading lyrics"
   },
+  "popup_login_hint_title": {
+    "message": "还没有看到按钮？",
+    "description": "Title for the song page login hint in popup"
+  },
+  "popup_login_hint_body": {
+    "message": "如果你还没有登录 Suno，扩展无法读取歌词数据。请先登录，刷新歌曲页，然后再试。",
+    "description": "Body text explaining that Suno login is required before buttons can appear"
+  },
   "popup_troubleshooting_heading": {
     "message": "没有看到按钮时",
     "description": "Heading for popup troubleshooting tips"
   },
   "popup_troubleshooting_login": {
-    "message": "确认你已经登录 Suno。",
+    "message": "如果你没有登录 Suno，下载按钮不会显示。",
     "description": "Troubleshooting tip for Suno login"
   },
   "popup_troubleshooting_song_page": {

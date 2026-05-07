@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extension_name__",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "description": "__MSG_extension_description__",
   "minimum_chrome_version": "114",
   "default_locale": "en",
@@ -12,7 +12,7 @@
     "128": "public/icon128.png"
   },
   "permissions": [
-    "tabs"
+    "activeTab"
   ],
   "action": {
     "default_title": "__MSG_extension_name__",
@@ -38,6 +38,7 @@
     }
   ],
   "host_permissions": [
-    "https://suno.com/*"
+    "https://suno.com/*",
+    "https://studio-api.prod.suno.com/*"
   ]
 }
