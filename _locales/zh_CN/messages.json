@@ -26,5 +26,105 @@
         "example": "LRC"
       }
     }
+  },
+  "popup_subtitle": {
+    "message": "打开 Suno 歌曲详情页，就能从歌曲封面下载同步歌词。",
+    "description": "Short popup onboarding subtitle"
+  },
+  "popup_demo_alt": {
+    "message": "演示 LRC 和 SRT 下载按钮在 Suno 歌曲封面上的位置。",
+    "description": "Alt text for the popup demo image"
+  },
+  "popup_status_loading": {
+    "message": "正在检查当前标签页...",
+    "description": "Popup status while checking the active tab"
+  },
+  "popup_status_not_suno": {
+    "message": "打开 Suno，并选择一个歌曲详情页开始使用。",
+    "description": "Popup status when the active tab is not Suno"
+  },
+  "popup_status_suno_page": {
+    "message": "你已经在 Suno。请打开网址以 /song/ 开头的歌曲详情页。",
+    "description": "Popup status when the active tab is Suno but not a song page"
+  },
+  "popup_status_song_page": {
+    "message": "已检测到歌曲页。现在可以查找下载按钮。",
+    "description": "Popup status when the active tab is a Suno song page"
+  },
+  "popup_status_unknown": {
+    "message": "打开 Suno 歌曲详情页即可使用此扩展。",
+    "description": "Popup status when the active tab cannot be identified"
+  },
+  "popup_button_open_suno": {
+    "message": "打开 Suno",
+    "description": "Button label for opening Suno"
+  },
+  "popup_button_find_buttons": {
+    "message": "查找下载按钮",
+    "description": "Button label for manually finding injected download buttons"
+  },
+  "popup_feedback_triggered": {
+    "message": "已执行。请在歌曲封面顶部查找 LRC 和 SRT。",
+    "description": "Feedback after manually triggering the content script"
+  },
+  "popup_feedback_trigger_failed": {
+    "message": "无法连接当前 Suno 页面。请刷新标签页后重试。",
+    "description": "Feedback when the popup cannot message the Suno tab"
+  },
+  "popup_feedback_no_tab": {
+    "message": "没有找到当前活动标签页。",
+    "description": "Feedback when there is no active tab"
+  },
+  "popup_steps_heading": {
+    "message": "使用方法",
+    "description": "Heading for the popup usage steps"
+  },
+  "popup_step_login_title": {
+    "message": "登录 Suno",
+    "description": "Step title for signing in to Suno"
+  },
+  "popup_step_login_body": {
+    "message": "使用此浏览器中已有的 Suno 登录状态。",
+    "description": "Step body for signing in to Suno"
+  },
+  "popup_step_open_title": {
+    "message": "打开歌曲页",
+    "description": "Step title for opening a song page"
+  },
+  "popup_step_open_body": {
+    "message": "页面地址应类似 https://suno.com/song/...",
+    "description": "Step body for opening a Suno song page"
+  },
+  "popup_step_download_title": {
+    "message": "点击 LRC 或 SRT",
+    "description": "Step title for downloading lyrics"
+  },
+  "popup_step_download_body": {
+    "message": "找到歌词后，按钮会出现在歌曲封面顶部。",
+    "description": "Step body for downloading lyrics"
+  },
+  "popup_troubleshooting_heading": {
+    "message": "没有看到按钮时",
+    "description": "Heading for popup troubleshooting tips"
+  },
+  "popup_troubleshooting_login": {
+    "message": "确认你已经登录 Suno。",
+    "description": "Troubleshooting tip for Suno login"
+  },
+  "popup_troubleshooting_song_page": {
+    "message": "请使用歌曲详情页，不是首页、创建页或歌单页。",
+    "description": "Troubleshooting tip for song pages"
+  },
+  "popup_troubleshooting_cover": {
+    "message": "等待歌曲封面加载完成，或刷新页面。",
+    "description": "Troubleshooting tip for cover loading"
+  },
+  "popup_troubleshooting_aligned": {
+    "message": "有些歌曲没有提供同步歌词时间轴数据。",
+    "description": "Troubleshooting tip for songs without synchronized timing data"
+  },
+  "popup_footer_tip": {
+    "message": "提示：LRC 适合音乐播放器，SRT 适合字幕和视频剪辑软件。",
+    "description": "Popup footer tip explaining LRC and SRT formats"
   }
 }

@@ -1,3 +1,7 @@
+chrome.action.setPopup({ popup: 'popup.html' }).catch((error) => {
+  console.error('Error setting popup:', error);
+});
+
 // 监听标签页 URL 变化
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   // 只有当 URL 变化时才处理
@@ -16,17 +20,5 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         // console.debug("Could not send message to content script:", error);
       });
     }
-  }
-});
-
-// 处理扩展图标点击事件
-chrome.action.onClicked.addListener((tab) => {
-  if (tab.url && tab.url.includes('suno.com/song/')) {
-    // 如果当前在歌曲页面，向内容脚本发送消息，手动触发功能
-    chrome.tabs.sendMessage(tab.id!, {
-      action: "MANUALLY_TRIGGER"
-    }).catch(error => {
-      console.error("Error sending manual trigger message:", error);
-    });
   }
 });

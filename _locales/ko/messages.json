@@ -26,5 +26,105 @@
         "example": "LRC"
       }
     }
+  },
+  "popup_subtitle": {
+    "message": "Suno 곡 상세 페이지를 열고 커버에서 동기화 가사를 다운로드하세요.",
+    "description": "Short popup onboarding subtitle"
+  },
+  "popup_demo_alt": {
+    "message": "Suno 곡 커버에서 LRC 및 SRT 다운로드 버튼이 표시되는 위치를 보여주는 데모.",
+    "description": "Alt text for the popup demo image"
+  },
+  "popup_status_loading": {
+    "message": "현재 탭을 확인하는 중...",
+    "description": "Popup status while checking the active tab"
+  },
+  "popup_status_not_suno": {
+    "message": "Suno를 열고 곡 상세 페이지를 선택해 시작하세요.",
+    "description": "Popup status when the active tab is not Suno"
+  },
+  "popup_status_suno_page": {
+    "message": "Suno에 있습니다. URL이 /song/으로 시작하는 곡 상세 페이지를 여세요.",
+    "description": "Popup status when the active tab is Suno but not a song page"
+  },
+  "popup_status_song_page": {
+    "message": "곡 페이지가 감지되었습니다. 이제 다운로드 버튼을 찾을 수 있습니다.",
+    "description": "Popup status when the active tab is a Suno song page"
+  },
+  "popup_status_unknown": {
+    "message": "이 확장 프로그램을 사용하려면 Suno 곡 상세 페이지를 여세요.",
+    "description": "Popup status when the active tab cannot be identified"
+  },
+  "popup_button_open_suno": {
+    "message": "Suno 열기",
+    "description": "Button label for opening Suno"
+  },
+  "popup_button_find_buttons": {
+    "message": "다운로드 버튼 찾기",
+    "description": "Button label for manually finding injected download buttons"
+  },
+  "popup_feedback_triggered": {
+    "message": "완료되었습니다. 곡 커버 상단에서 LRC와 SRT를 찾으세요.",
+    "description": "Feedback after manually triggering the content script"
+  },
+  "popup_feedback_trigger_failed": {
+    "message": "Suno 페이지에 연결할 수 없습니다. 탭을 새로고침한 뒤 다시 시도하세요.",
+    "description": "Feedback when the popup cannot message the Suno tab"
+  },
+  "popup_feedback_no_tab": {
+    "message": "활성 브라우저 탭을 찾을 수 없습니다.",
+    "description": "Feedback when there is no active tab"
+  },
+  "popup_steps_heading": {
+    "message": "사용 방법",
+    "description": "Heading for the popup usage steps"
+  },
+  "popup_step_login_title": {
+    "message": "Suno에 로그인",
+    "description": "Step title for signing in to Suno"
+  },
+  "popup_step_login_body": {
+    "message": "이 브라우저의 기존 Suno 계정을 사용합니다.",
+    "description": "Step body for signing in to Suno"
+  },
+  "popup_step_open_title": {
+    "message": "곡 페이지 열기",
+    "description": "Step title for opening a song page"
+  },
+  "popup_step_open_body": {
+    "message": "URL은 https://suno.com/song/... 형태여야 합니다.",
+    "description": "Step body for opening a Suno song page"
+  },
+  "popup_step_download_title": {
+    "message": "LRC 또는 SRT 클릭",
+    "description": "Step title for downloading lyrics"
+  },
+  "popup_step_download_body": {
+    "message": "가사를 찾으면 곡 커버 상단에 버튼이 나타납니다.",
+    "description": "Step body for downloading lyrics"
+  },
+  "popup_troubleshooting_heading": {
+    "message": "버튼이 보이지 않는 경우",
+    "description": "Heading for popup troubleshooting tips"
+  },
+  "popup_troubleshooting_login": {
+    "message": "Suno에 로그인되어 있는지 확인하세요.",
+    "description": "Troubleshooting tip for Suno login"
+  },
+  "popup_troubleshooting_song_page": {
+    "message": "홈, 만들기, 플레이리스트가 아닌 곡 상세 페이지를 사용하세요.",
+    "description": "Troubleshooting tip for song pages"
+  },
+  "popup_troubleshooting_cover": {
+    "message": "곡 커버가 로드될 때까지 기다리거나 페이지를 새로고침하세요.",
+    "description": "Troubleshooting tip for cover loading"
+  },
+  "popup_troubleshooting_aligned": {
+    "message": "일부 곡은 동기화 가사 타이밍 데이터를 제공하지 않습니다.",
+    "description": "Troubleshooting tip for songs without synchronized timing data"
+  },
+  "popup_footer_tip": {
+    "message": "팁: LRC는 음악 플레이어용, SRT는 자막과 영상 편집기용입니다.",
+    "description": "Popup footer tip explaining LRC and SRT formats"
   }
 }

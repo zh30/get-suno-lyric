@@ -6,7 +6,7 @@ const rspack = require('@rspack/core');
 
 module.exports = (env, argv) => defineConfig({
   entry: {
-    // popup: './src/popup/popup.tsx',
+    popup: './src/popup/popup.tsx',
     // sidePanel: './src/sidePanel/sidePanel.tsx',
     background: './src/scripts/background.ts',
     contentScript: './src/scripts/contentScript.ts',
@@ -17,7 +17,7 @@ module.exports = (env, argv) => defineConfig({
     clean: true,
   },
   resolve: {
-    extensions: ['.ts', '.js', 'tsx'],
+    extensions: ['.ts', '.tsx', '.js'],
     alias: {
       '@': path.resolve(__dirname, 'src'),
     },
@@ -56,15 +56,15 @@ module.exports = (env, argv) => defineConfig({
     ],
   },
   plugins: [
-    // new rspack.CssExtractRspackPlugin({
-    //   filename: '[name].css',
-    // }),
-    // new rspack.HtmlRspackPlugin({
-    //   template: './src/popup/popup.html',
-    //   filename: 'popup.html',
-    //   chunks: ['popup'],
-    //   minify: true,
-    // }),
+    new rspack.CssExtractRspackPlugin({
+      filename: '[name].css',
+    }),
+    new rspack.HtmlRspackPlugin({
+      template: './src/popup/popup.html',
+      filename: 'popup.html',
+      chunks: ['popup'],
+      minify: true,
+    }),
     // new rspack.HtmlRspackPlugin({
     //   template: './src/sidePanel/sidePanel.html',
     //   filename: 'sidePanel.html',
@@ -76,6 +76,7 @@ module.exports = (env, argv) => defineConfig({
         { from: 'public', to: 'public' },
         { from: 'src/manifest.json', to: 'manifest.json' },
         { from: '_locales', to: '_locales' },
+        { from: 'show.gif', to: 'show.gif' },
       ],
     }),
   ],

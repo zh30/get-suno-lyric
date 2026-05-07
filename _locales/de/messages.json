@@ -26,5 +26,105 @@
         "example": "LRC"
       }
     }
+  },
+  "popup_subtitle": {
+    "message": "Öffne eine Suno-Songseite und lade synchronisierte Lyrics direkt vom Cover herunter.",
+    "description": "Short popup onboarding subtitle"
+  },
+  "popup_demo_alt": {
+    "message": "Demo, wo die LRC- und SRT-Downloadbuttons auf einem Suno-Songcover erscheinen.",
+    "description": "Alt text for the popup demo image"
+  },
+  "popup_status_loading": {
+    "message": "Aktueller Tab wird geprüft...",
+    "description": "Popup status while checking the active tab"
+  },
+  "popup_status_not_suno": {
+    "message": "Öffne Suno und wähle eine Songdetailseite aus.",
+    "description": "Popup status when the active tab is not Suno"
+  },
+  "popup_status_suno_page": {
+    "message": "Du bist auf Suno. Öffne eine Songseite, deren URL mit /song/ beginnt.",
+    "description": "Popup status when the active tab is Suno but not a song page"
+  },
+  "popup_status_song_page": {
+    "message": "Songseite erkannt. Du kannst jetzt nach den Downloadbuttons suchen.",
+    "description": "Popup status when the active tab is a Suno song page"
+  },
+  "popup_status_unknown": {
+    "message": "Öffne eine Suno-Songdetailseite, um diese Erweiterung zu nutzen.",
+    "description": "Popup status when the active tab cannot be identified"
+  },
+  "popup_button_open_suno": {
+    "message": "Suno öffnen",
+    "description": "Button label for opening Suno"
+  },
+  "popup_button_find_buttons": {
+    "message": "Downloadbuttons suchen",
+    "description": "Button label for manually finding injected download buttons"
+  },
+  "popup_feedback_triggered": {
+    "message": "Fertig. Suche LRC und SRT oben auf dem Songcover.",
+    "description": "Feedback after manually triggering the content script"
+  },
+  "popup_feedback_trigger_failed": {
+    "message": "Die Suno-Seite konnte nicht erreicht werden. Aktualisiere den Tab und versuche es erneut.",
+    "description": "Feedback when the popup cannot message the Suno tab"
+  },
+  "popup_feedback_no_tab": {
+    "message": "Kein aktiver Browser-Tab gefunden.",
+    "description": "Feedback when there is no active tab"
+  },
+  "popup_steps_heading": {
+    "message": "So funktioniert es",
+    "description": "Heading for the popup usage steps"
+  },
+  "popup_step_login_title": {
+    "message": "Bei Suno anmelden",
+    "description": "Step title for signing in to Suno"
+  },
+  "popup_step_login_body": {
+    "message": "Nutze dein vorhandenes Suno-Konto in diesem Browser.",
+    "description": "Step body for signing in to Suno"
+  },
+  "popup_step_open_title": {
+    "message": "Songseite öffnen",
+    "description": "Step title for opening a song page"
+  },
+  "popup_step_open_body": {
+    "message": "Die URL sollte etwa https://suno.com/song/... sein.",
+    "description": "Step body for opening a Suno song page"
+  },
+  "popup_step_download_title": {
+    "message": "LRC oder SRT klicken",
+    "description": "Step title for downloading lyrics"
+  },
+  "popup_step_download_body": {
+    "message": "Die Buttons erscheinen oben auf dem Cover, nachdem Lyrics gefunden wurden.",
+    "description": "Step body for downloading lyrics"
+  },
+  "popup_troubleshooting_heading": {
+    "message": "Wenn keine Buttons erscheinen",
+    "description": "Heading for popup troubleshooting tips"
+  },
+  "popup_troubleshooting_login": {
+    "message": "Stelle sicher, dass du bei Suno angemeldet bist.",
+    "description": "Troubleshooting tip for Suno login"
+  },
+  "popup_troubleshooting_song_page": {
+    "message": "Nutze eine Songdetailseite, nicht Startseite, Erstellen oder Playlist.",
+    "description": "Troubleshooting tip for song pages"
+  },
+  "popup_troubleshooting_cover": {
+    "message": "Warte, bis das Cover geladen ist, oder aktualisiere die Seite.",
+    "description": "Troubleshooting tip for cover loading"
+  },
+  "popup_troubleshooting_aligned": {
+    "message": "Einige Songs liefern keine synchronisierten Timingdaten.",
+    "description": "Troubleshooting tip for songs without synchronized timing data"
+  },
+  "popup_footer_tip": {
+    "message": "Tipp: LRC ist für Musikplayer. SRT ist für Untertitel und Videoeditoren.",
+    "description": "Popup footer tip explaining LRC and SRT formats"
   }
 }

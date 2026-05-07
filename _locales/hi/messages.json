@@ -26,5 +26,105 @@
         "example": "LRC"
       }
     }
+  },
+  "popup_subtitle": {
+    "message": "Suno गीत पेज खोलें और कवर से सिंक किए हुए lyrics डाउनलोड करें।",
+    "description": "Short popup onboarding subtitle"
+  },
+  "popup_demo_alt": {
+    "message": "डेमो जिसमें Suno गीत कवर पर LRC और SRT डाउनलोड बटन की जगह दिखाई गई है।",
+    "description": "Alt text for the popup demo image"
+  },
+  "popup_status_loading": {
+    "message": "मौजूदा टैब जांच रहे हैं...",
+    "description": "Popup status while checking the active tab"
+  },
+  "popup_status_not_suno": {
+    "message": "शुरू करने के लिए Suno खोलें और गीत detail page चुनें।",
+    "description": "Popup status when the active tab is not Suno"
+  },
+  "popup_status_suno_page": {
+    "message": "आप Suno पर हैं। ऐसा गीत page खोलें जिसकी URL /song/ से शुरू हो।",
+    "description": "Popup status when the active tab is Suno but not a song page"
+  },
+  "popup_status_song_page": {
+    "message": "गीत page मिल गया। अब download buttons खोज सकते हैं।",
+    "description": "Popup status when the active tab is a Suno song page"
+  },
+  "popup_status_unknown": {
+    "message": "इस extension का उपयोग करने के लिए Suno गीत detail page खोलें।",
+    "description": "Popup status when the active tab cannot be identified"
+  },
+  "popup_button_open_suno": {
+    "message": "Suno खोलें",
+    "description": "Button label for opening Suno"
+  },
+  "popup_button_find_buttons": {
+    "message": "Download Buttons खोजें",
+    "description": "Button label for manually finding injected download buttons"
+  },
+  "popup_feedback_triggered": {
+    "message": "हो गया। गीत कवर के ऊपर LRC और SRT देखें।",
+    "description": "Feedback after manually triggering the content script"
+  },
+  "popup_feedback_trigger_failed": {
+    "message": "Suno page से संपर्क नहीं हो पाया। टैब refresh करके फिर कोशिश करें।",
+    "description": "Feedback when the popup cannot message the Suno tab"
+  },
+  "popup_feedback_no_tab": {
+    "message": "कोई active browser tab नहीं मिला।",
+    "description": "Feedback when there is no active tab"
+  },
+  "popup_steps_heading": {
+    "message": "उपयोग कैसे करें",
+    "description": "Heading for the popup usage steps"
+  },
+  "popup_step_login_title": {
+    "message": "Suno में sign in करें",
+    "description": "Step title for signing in to Suno"
+  },
+  "popup_step_login_body": {
+    "message": "इस browser में अपना मौजूदा Suno account उपयोग करें।",
+    "description": "Step body for signing in to Suno"
+  },
+  "popup_step_open_title": {
+    "message": "गीत page खोलें",
+    "description": "Step title for opening a song page"
+  },
+  "popup_step_open_body": {
+    "message": "URL ऐसी होनी चाहिए: https://suno.com/song/...",
+    "description": "Step body for opening a Suno song page"
+  },
+  "popup_step_download_title": {
+    "message": "LRC या SRT क्लिक करें",
+    "description": "Step title for downloading lyrics"
+  },
+  "popup_step_download_body": {
+    "message": "Lyrics मिलने के बाद buttons गीत कवर के ऊपर दिखते हैं।",
+    "description": "Step body for downloading lyrics"
+  },
+  "popup_troubleshooting_heading": {
+    "message": "अगर buttons न दिखें",
+    "description": "Heading for popup troubleshooting tips"
+  },
+  "popup_troubleshooting_login": {
+    "message": "पक्का करें कि आप Suno में sign in हैं।",
+    "description": "Troubleshooting tip for Suno login"
+  },
+  "popup_troubleshooting_song_page": {
+    "message": "Home, create या playlist नहीं, गीत detail page खोलें।",
+    "description": "Troubleshooting tip for song pages"
+  },
+  "popup_troubleshooting_cover": {
+    "message": "गीत कवर load होने दें, या page refresh करें।",
+    "description": "Troubleshooting tip for cover loading"
+  },
+  "popup_troubleshooting_aligned": {
+    "message": "कुछ गीत synchronized lyric timing data नहीं देते।",
+    "description": "Troubleshooting tip for songs without synchronized timing data"
+  },
+  "popup_footer_tip": {
+    "message": "Tip: LRC music players के लिए है। SRT subtitles और video editors के लिए है।",
+    "description": "Popup footer tip explaining LRC and SRT formats"
   }
 }

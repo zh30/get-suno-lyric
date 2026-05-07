@@ -26,5 +26,105 @@
         "example": "LRC"
       }
     }
+  },
+  "popup_subtitle": {
+    "message": "افتح صفحة أغنية في Suno ثم نزّل الكلمات المتزامنة من غلاف الأغنية.",
+    "description": "Short popup onboarding subtitle"
+  },
+  "popup_demo_alt": {
+    "message": "عرض يوضح مكان ظهور زري تنزيل LRC و SRT على غلاف أغنية Suno.",
+    "description": "Alt text for the popup demo image"
+  },
+  "popup_status_loading": {
+    "message": "جارٍ فحص التبويب الحالي...",
+    "description": "Popup status while checking the active tab"
+  },
+  "popup_status_not_suno": {
+    "message": "افتح Suno واختر صفحة تفاصيل أغنية للبدء.",
+    "description": "Popup status when the active tab is not Suno"
+  },
+  "popup_status_suno_page": {
+    "message": "أنت على Suno. افتح صفحة أغنية يبدأ رابطها بـ /song/.",
+    "description": "Popup status when the active tab is Suno but not a song page"
+  },
+  "popup_status_song_page": {
+    "message": "تم اكتشاف صفحة أغنية. يمكنك الآن البحث عن أزرار التنزيل.",
+    "description": "Popup status when the active tab is a Suno song page"
+  },
+  "popup_status_unknown": {
+    "message": "افتح صفحة تفاصيل أغنية في Suno لاستخدام هذا الامتداد.",
+    "description": "Popup status when the active tab cannot be identified"
+  },
+  "popup_button_open_suno": {
+    "message": "فتح Suno",
+    "description": "Button label for opening Suno"
+  },
+  "popup_button_find_buttons": {
+    "message": "البحث عن أزرار التنزيل",
+    "description": "Button label for manually finding injected download buttons"
+  },
+  "popup_feedback_triggered": {
+    "message": "تم. ابحث عن LRC و SRT أعلى غلاف الأغنية.",
+    "description": "Feedback after manually triggering the content script"
+  },
+  "popup_feedback_trigger_failed": {
+    "message": "تعذر الوصول إلى صفحة Suno. حدّث التبويب ثم حاول مرة أخرى.",
+    "description": "Feedback when the popup cannot message the Suno tab"
+  },
+  "popup_feedback_no_tab": {
+    "message": "لم يتم العثور على تبويب متصفح نشط.",
+    "description": "Feedback when there is no active tab"
+  },
+  "popup_steps_heading": {
+    "message": "طريقة الاستخدام",
+    "description": "Heading for the popup usage steps"
+  },
+  "popup_step_login_title": {
+    "message": "سجّل الدخول إلى Suno",
+    "description": "Step title for signing in to Suno"
+  },
+  "popup_step_login_body": {
+    "message": "استخدم حساب Suno الحالي في هذا المتصفح.",
+    "description": "Step body for signing in to Suno"
+  },
+  "popup_step_open_title": {
+    "message": "افتح صفحة أغنية",
+    "description": "Step title for opening a song page"
+  },
+  "popup_step_open_body": {
+    "message": "يجب أن يبدو الرابط مثل https://suno.com/song/...",
+    "description": "Step body for opening a Suno song page"
+  },
+  "popup_step_download_title": {
+    "message": "اضغط LRC أو SRT",
+    "description": "Step title for downloading lyrics"
+  },
+  "popup_step_download_body": {
+    "message": "تظهر الأزرار أعلى غلاف الأغنية بعد العثور على الكلمات.",
+    "description": "Step body for downloading lyrics"
+  },
+  "popup_troubleshooting_heading": {
+    "message": "إذا لم تظهر الأزرار",
+    "description": "Heading for popup troubleshooting tips"
+  },
+  "popup_troubleshooting_login": {
+    "message": "تأكد من تسجيل الدخول إلى Suno.",
+    "description": "Troubleshooting tip for Suno login"
+  },
+  "popup_troubleshooting_song_page": {
+    "message": "استخدم صفحة تفاصيل أغنية، وليس الرئيسية أو الإنشاء أو قائمة التشغيل.",
+    "description": "Troubleshooting tip for song pages"
+  },
+  "popup_troubleshooting_cover": {
+    "message": "انتظر تحميل غلاف الأغنية أو حدّث الصفحة.",
+    "description": "Troubleshooting tip for cover loading"
+  },
+  "popup_troubleshooting_aligned": {
+    "message": "بعض الأغاني لا توفر بيانات توقيت كلمات متزامنة.",
+    "description": "Troubleshooting tip for songs without synchronized timing data"
+  },
+  "popup_footer_tip": {
+    "message": "تلميح: LRC لمشغلات الموسيقى. SRT للترجمات ومحررات الفيديو.",
+    "description": "Popup footer tip explaining LRC and SRT formats"
   }
 }
