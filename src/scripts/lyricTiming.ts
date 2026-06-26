@@ -31,6 +31,36 @@ function isStructureLyricLine(text: string): boolean {
   return /^\[.*\]$/.test(cleaned) || /^\(.*\)$/.test(cleaned) || /^\uFF08.*\uFF09$/.test(cleaned);
 }
 
+function isPunctuationOnlyFragment(text: string): boolean {
+  const cleaned = sanitizeLyricText(text);
+  return cleaned.length > 0 &&
+    /^[\s.,!?;:\uFF0C\u3002\uFF01\uFF1F\uFF1B\uFF1A\u3001'"\u201C\u201D\u2018\u2019`\u00B7\-\u2013\u2014()\[\]{}]+$/.test(cleaned);
+}
+
+function hasTrailingPunctuation(text: string): boolean {
+  return /[.,!?;:\uFF0C\u3002\uFF01\uFF1F\uFF1B\uFF1A\u3001'"\u201C\u201D\u2018\u2019`\)\]\}]$/.test(sanitizeLyricText(text));
+}
+
+function getLetters(text: string): string[] {
+  return sanitizeLyricText(text).match(/\p{L}/gu) ?? [];
+}
+
+function endsWithLetter(text: string): boolean {
+  const cleaned = sanitizeLyricText(text);
+  return /\p{L}$/u.test(cleaned);
+}
+
+function startsWithLowercaseLetter(text: string): boolean {
+  const letters = getLetters(text);
+  if (letters.length === 0) {
+    return false;
+  }
+
+  const firstLetter = letters[0];
+  return firstLetter === firstLetter.toLocaleLowerCase() &&
+    firstLetter !== firstLetter.toLocaleUpperCase();
+}
+
 function lyricUnits(text: string): number {
   return normalizeLyricForMatch(text).length;
 }
@@ -83,6 +113,160 @@ function parsePromptLines(prompt: string): string[] {
     .split(/\r?\n/)
     .map((line) => sanitizeLyricText(line))
     .filter((line) => line.length > 0);
+}
+
+function isAdjacentContinuation(previous: LineTiming, current: LineTiming): boolean {
+  if (!isFiniteNumber(previous.end_s) || !isFiniteNumber(current.start_s)) {
+    return false;
+  }
+
+  const gap = current.start_s - previous.end_s;
+  return current.start_s + 0.05 >= previous.start_s && gap <= 0.35;
+}
+
+function shouldMergeShortFragment(previous: LineTiming, current: LineTiming): boolean {
+  if (isStructureLyricLine(previous.text) || isStructureLyricLine(current.text)) {
+    return false;
+  }
+  if (!isAdjacentContinuation(previous, current)) {
+    return false;
+  }
+  if (isPunctuationOnlyFragment(current.text)) {
+    return true;
+  }
+
+  const units = lyricUnits(current.text);
+  if (units <= 0 || units > 3) {
+    return false;
+  }
+
+  const duration = current.end_s - current.start_s;
+  return duration <= 0.85 &&
+    endsWithLetter(previous.text) &&
+    startsWithLowercaseLetter(current.text) &&
+    (units === 1 || hasTrailingPunctuation(current.text));
+}
+
+function mergeLinePair(previous: LineTiming, current: LineTiming): LineTiming {
+  return {
+    text: `${sanitizeLyricText(previous.text)}${sanitizeLyricText(current.text)}`,
+    start_s: previous.start_s,
+    end_s: roundToMillis(Math.max(previous.end_s, current.end_s, previous.start_s + 0.02))
+  };
+}
+
+function findPromptCandidate(
+  normalizedLine: string,
+  normalizedPromptLines: string[],
+  promptCursor: number
+): { index: number; exact: boolean } | undefined {
+  if (!normalizedLine) {
+    return undefined;
+  }
+
+  for (let index = promptCursor; index < normalizedPromptLines.length; index += 1) {
+    const candidate = normalizedPromptLines[index];
+    if (!candidate) {
+      continue;
+    }
+    if (candidate === normalizedLine) {
+      return { index, exact: true };
+    }
+    if (normalizedLine.length >= 5 && candidate.startsWith(normalizedLine)) {
+      return { index, exact: false };
+    }
+  }
+
+  return undefined;
+}
+
+function collectPromptContinuation(
+  lines: LineTiming[],
+  startIndex: number,
+  targetNormalized: string
+): { endIndex: number; end_s: number } | undefined {
+  let combinedNormalized = normalizeLyricForMatch(lines[startIndex].text);
+  let previousLine = lines[startIndex];
+  let end = previousLine.end_s;
+
+  for (let index = startIndex + 1; index < lines.length; index += 1) {
+    const currentLine = lines[index];
+    if (isStructureLyricLine(currentLine.text) || !isAdjacentContinuation(previousLine, currentLine)) {
+      break;
+    }
+
+    const currentNormalized = normalizeLyricForMatch(currentLine.text);
+    if (!currentNormalized) {
+      break;
+    }
+
+    const nextNormalized = combinedNormalized + currentNormalized;
+    if (!targetNormalized.startsWith(nextNormalized)) {
+      break;
+    }
+
+    combinedNormalized = nextNormalized;
+    end = Math.max(end, currentLine.end_s);
+    previousLine = currentLine;
+
+    if (combinedNormalized === targetNormalized) {
+      return { endIndex: index, end_s: roundToMillis(end) };
+    }
+  }
+
+  return undefined;
+}
+
+export function mergeLyricLineFragments(lines: LineTiming[], prompt?: string): LineTiming[] {
+  if (lines.length === 0) {
+    return [];
+  }
+
+  const promptLines = prompt ? parsePromptLines(prompt) : [];
+  const normalizedPromptLines = promptLines.map((line) => normalizeLyricForMatch(line));
+  const merged: LineTiming[] = [];
+  let promptCursor = 0;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = {
+      text: sanitizeLyricText(lines[index].text),
+      start_s: lines[index].start_s,
+      end_s: lines[index].end_s
+    };
+
+    if (!line.text) {
+      continue;
+    }
+
+    const normalizedLine = normalizeLyricForMatch(line.text);
+    const promptCandidate = findPromptCandidate(normalizedLine, normalizedPromptLines, promptCursor);
+    if (promptCandidate && !promptCandidate.exact) {
+      const continuation = collectPromptContinuation(lines, index, normalizedPromptLines[promptCandidate.index]);
+      if (continuation) {
+        merged.push({
+          text: promptLines[promptCandidate.index],
+          start_s: line.start_s,
+          end_s: continuation.end_s
+        });
+        promptCursor = promptCandidate.index + 1;
+        index = continuation.endIndex;
+        continue;
+      }
+    }
+
+    const previous = merged[merged.length - 1];
+    if (previous && shouldMergeShortFragment(previous, line)) {
+      merged[merged.length - 1] = mergeLinePair(previous, line);
+      continue;
+    }
+
+    merged.push(line);
+    if (promptCandidate?.exact) {
+      promptCursor = promptCandidate.index + 1;
+    }
+  }
+
+  return merged;
 }
 
 function buildLineTimingsFromStarts(

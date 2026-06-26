@@ -1,4 +1,7 @@
-import { repairMissingPromptLines as repairMissingPromptLinesFromPrompt } from './lyricTiming';
+import {
+  mergeLyricLineFragments,
+  repairMissingPromptLines as repairMissingPromptLinesFromPrompt
+} from './lyricTiming';
 
 interface AlignedToken {
   text?: string;
@@ -915,17 +918,22 @@ async function fetchLyrics(songId: string, token: string): Promise<LyricsData | 
         let repairedLines = timingResult.lines;
         let insertedCount = 0;
         const clip = await ensureClipData();
+        const prompt = clip?.metadata?.prompt;
+        const fragmentMergedLines = mergeLyricLineFragments(timingResult.lines, prompt);
         const repairResult = repairMissingPromptLinesFromPrompt(
-          timingResult.lines,
-          clip?.metadata?.prompt,
+          fragmentMergedLines,
+          prompt,
           durationS
         );
-        repairedLines = repairResult.lines;
+        repairedLines = mergeLyricLineFragments(repairResult.lines, prompt);
         insertedCount = repairResult.insertedCount;
+        const mergedFragmentCount =
+          timingResult.lines.length - fragmentMergedLines.length +
+          repairResult.lines.length - repairedLines.length;
 
         if (repairedLines.length > 0) {
           console.info(
-            `[SunoLyric] ✅ Found aligned lyrics: ${repairedLines.length} lines${insertedCount > 0 ? ` (+${insertedCount} repaired from prompt)` : ''}`
+            `[SunoLyric] ✅ Found aligned lyrics: ${repairedLines.length} lines${insertedCount > 0 ? ` (+${insertedCount} repaired from prompt)` : ''}${mergedFragmentCount > 0 ? ` (-${mergedFragmentCount} merged fragments)` : ''}`
           );
           const lyricsData: LyricsData = { type: 'aligned', data: repairedLines };
           lyricsCache.set(songId, lyricsData);

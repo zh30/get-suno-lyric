@@ -52,6 +52,76 @@ const lyricTimingModule = await loadLyricTimingModule();
 
 after(() => rm(outputRoot, { recursive: true, force: true }));
 
+test('merges standalone punctuation fragments into the previous lyric line', () => {
+  const result = lyricTimingModule.mergeLyricLineFragments([
+    { text: 'Hunter says, "That threat seems strange,', start_s: 45.55, end_s: 47.31 },
+    { text: '"', start_s: 47.31, end_s: 47.31 },
+    { text: 'Warlock taps and begs for more,', start_s: 47.31, end_s: 49.06 }
+  ]);
+
+  assert.deepEqual(
+    result.map((line) => line.text),
+    [
+      'Hunter says, "That threat seems strange,"',
+      'Warlock taps and begs for more,'
+    ]
+  );
+  assert.equal(result[0].start_s, 45.55);
+  assert.equal(result[0].end_s, 47.31);
+});
+
+test('merges short word suffix fragments into the previous lyric line', () => {
+  const result = lyricTimingModule.mergeLyricLineFragments([
+    { text: 'Because you stood where death was glowin', start_s: 136.51, end_s: 138.19 },
+    { text: 'g,', start_s: 138.19, end_s: 138.27 },
+    { text: 'Because your threat kept overflowing,', start_s: 138.27, end_s: 139.94 }
+  ]);
+
+  assert.deepEqual(
+    result.map((line) => line.text),
+    [
+      'Because you stood where death was glowing,',
+      'Because your threat kept overflowing,'
+    ]
+  );
+  assert.equal(result[0].start_s, 136.51);
+  assert.equal(result[0].end_s, 138.27);
+});
+
+test('uses prompt line boundaries to merge longer continuation fragments', () => {
+  const prompt = [
+    'I will heal the tank, I will raise the fallen,',
+    'I will answer when the raid is calling,'
+  ].join('\n');
+  const result = lyricTimingModule.mergeLyricLineFragments([
+    { text: 'I will heal the tank, I will raise the', start_s: 66.22, end_s: 67.68 },
+    { text: 'fallen,', start_s: 67.68, end_s: 68.12 },
+    { text: 'I will answer when the raid is calling,', start_s: 68.12, end_s: 70.1 }
+  ], prompt);
+
+  assert.deepEqual(
+    result.map((line) => line.text),
+    [
+      'I will heal the tank, I will raise the fallen,',
+      'I will answer when the raid is calling,'
+    ]
+  );
+  assert.equal(result[0].start_s, 66.22);
+  assert.equal(result[0].end_s, 68.12);
+});
+
+test('keeps legitimate short lyric lines separate', () => {
+  const result = lyricTimingModule.mergeLyricLineFragments([
+    { text: 'Oh', start_s: 10, end_s: 10.8 },
+    { text: 'No', start_s: 11, end_s: 11.8 }
+  ]);
+
+  assert.deepEqual(
+    result.map((line) => line.text),
+    ['Oh', 'No']
+  );
+});
+
 test('does not synthesize prompt lines when adjacent aligned starts are identical', () => {
   const alignedLines = [
     { text: 'I will raise the tank', start_s: 66.22, end_s: 66.22 },
