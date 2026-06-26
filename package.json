@@ -22,8 +22,6 @@
     "@rspack/cli": "^2.1.0",
     "@rspack/core": "^2.1.0",
     "@tailwindcss/postcss": "^4.3.1",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
     "chrome-types": "^0.1.430",
     "css-loader": "^7.1.4",
     "postcss": "^8.5.15",
@@ -32,8 +30,6 @@
     "typescript": "^6.0.3"
   },
   "dependencies": {
-    "archiver": "^8.0.0",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "archiver": "^8.0.0"
   }
 }
