@@ -1,0 +1,23 @@
+packages:
+  - .
+
+minimumReleaseAgeExclude:
+  - '@rspack/binding-darwin-arm64@2.1.0'
+  - '@rspack/binding-darwin-x64@2.1.0'
+  - '@rspack/binding-linux-arm64-gnu@2.1.0'
+  - '@rspack/binding-linux-arm64-musl@2.1.0'
+  - '@rspack/binding-linux-riscv64-gnu@2.1.0'
+  - '@rspack/binding-linux-riscv64-musl@2.1.0'
+  - '@rspack/binding-linux-x64-gnu@2.1.0'
+  - '@rspack/binding-linux-x64-musl@2.1.0'
+  - '@rspack/binding-wasm32-wasi@2.1.0'
+  - '@rspack/binding-win32-arm64-msvc@2.1.0'
+  - '@rspack/binding-win32-ia32-msvc@2.1.0'
+  - '@rspack/binding-win32-x64-msvc@2.1.0'
+  - '@rspack/binding@2.1.0'
+  - '@rspack/cli@2.1.0'
+  - '@rspack/core@2.1.0'
+  - chrome-types@0.1.430
+
+onlyBuiltDependencies:
+  - '@tailwindcss/oxide'
