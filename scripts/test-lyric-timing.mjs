@@ -192,3 +192,67 @@ test('keeps a plausible single structural prompt repair', () => {
   assert.ok(result.lines[1].start_s > result.lines[0].start_s);
   assert.ok(result.lines[1].start_s < result.lines[2].start_s);
 });
+
+test('strips standalone Suno metadata tags from lyric download text', () => {
+  const examples = [
+    '[Verse 1]',
+    '[Chorus]',
+    '[Verse 1: Soft and introspective, with a steady rhythm]',
+    '[Intro - whispered, intimate, building from silence]',
+    '[Instrumental Break]',
+    '[electric guitar solo]',
+    '[Spoken Outro]',
+    '[Fade to End]',
+    '(Verse 2)',
+    '(Chorus)'
+  ];
+
+  for (const example of examples) {
+    assert.equal(lyricTimingModule.stripSunoTagsForLyricDownload(example), '');
+  }
+});
+
+test('strips leading Suno metadata tags while preserving downloaded lyrics', () => {
+  assert.equal(
+    lyricTimingModule.stripSunoTagsForLyricDownload('[Final Chorus]One breath, we rise,'),
+    'One breath, we rise,'
+  );
+  assert.equal(
+    lyricTimingModule.stripSunoTagsForLyricDownload('[Verse] I roll up'),
+    'I roll up'
+  );
+  assert.equal(
+    lyricTimingModule.stripSunoTagsForLyricDownload('[Intro][Humming a funky tune in the background] Yesss!'),
+    'Yesss!'
+  );
+});
+
+test('keeps sung parenthetical lyrics when stripping download tags', () => {
+  const examples = [
+    '(Yeah)',
+    '(Farm!)',
+    "(I'm the Scatman)",
+    'Suno AI Farm! (Farm!)'
+  ];
+
+  for (const example of examples) {
+    assert.equal(lyricTimingModule.stripSunoTagsForLyricDownload(example), example);
+  }
+});
+
+test('prepares lyric download lines by filtering tag-only lines and retaining timings', () => {
+  const result = lyricTimingModule.prepareLyricDownloadLines([
+    { text: '[Intro]', start_s: 0, end_s: 0.35 },
+    { text: '[Verse 1] First sung line', start_s: 0.35, end_s: 2 },
+    { text: '(Yeah)', start_s: 2, end_s: 2.4 },
+    { text: '[Guitar Solo]', start_s: 2.4, end_s: 4 }
+  ]);
+
+  assert.deepEqual(
+    result,
+    [
+      { text: 'First sung line', start_s: 0.35, end_s: 2 },
+      { text: '(Yeah)', start_s: 2, end_s: 2.4 }
+    ]
+  );
+});

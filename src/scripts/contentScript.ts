@@ -1,5 +1,6 @@
 import {
   mergeLyricLineFragments,
+  prepareLyricDownloadLines,
   repairMissingPromptLines as repairMissingPromptLinesFromPrompt
 } from './lyricTiming';
 
@@ -1054,7 +1055,7 @@ function createToolsOverlay(songId: string, lyrics: LyricsData): HTMLElement {
 }
 
 function convertToSRT(alignedLines: LineTiming[]): string {
-  return alignedLines
+  return prepareLyricDownloadLines(alignedLines)
     .map((line, index) => {
       const startTime = formatSRTTime(line.start_s);
       const endTime = formatSRTTime(line.end_s);
@@ -1064,7 +1065,7 @@ function convertToSRT(alignedLines: LineTiming[]): string {
 }
 
 function convertToLRC(alignedLines: LineTiming[]): string {
-  return alignedLines
+  return prepareLyricDownloadLines(alignedLines)
     .map(line => `${formatLRCTime(line.start_s)}${line.text}`)
     .join('\n');
 }

@@ -31,6 +31,150 @@ function isStructureLyricLine(text: string): boolean {
   return /^\[.*\]$/.test(cleaned) || /^\(.*\)$/.test(cleaned) || /^\uFF08.*\uFF09$/.test(cleaned);
 }
 
+const SUNO_TAG_KEYWORDS = new Set([
+  'adlib',
+  'adlibs',
+  'announcer',
+  'band',
+  'bass',
+  'break',
+  'bridge',
+  'build',
+  'buildup',
+  'choir',
+  'chorus',
+  'climax',
+  'crescendo',
+  'delay',
+  'drop',
+  'drum',
+  'drums',
+  'duet',
+  'echo',
+  'end',
+  'ending',
+  'escalate',
+  'fade',
+  'fading',
+  'female',
+  'finish',
+  'guitar',
+  'harmonies',
+  'harmony',
+  'hook',
+  'hum',
+  'humming',
+  'instrumental',
+  'instrumentale',
+  'instruments',
+  'interlude',
+  'intro',
+  'jam',
+  'lyrics',
+  'male',
+  'melodic',
+  'narrator',
+  'outro',
+  'piano',
+  'postchorus',
+  'prechorus',
+  'rap',
+  'refrain',
+  'reprise',
+  'reverb',
+  'sax',
+  'saxophone',
+  'shouted',
+  'singing',
+  'solo',
+  'softly',
+  'spoken',
+  'strings',
+  'sung',
+  'synth',
+  'tension',
+  'verse',
+  'vocal',
+  'vocals',
+  'whisper',
+  'whispered',
+  'word'
+]);
+
+function getTagWords(text: string): string[] {
+  return sanitizeLyricText(text)
+    .toLowerCase()
+    .replace(/pre[\s-]+chorus/g, 'prechorus')
+    .replace(/post[\s-]+chorus/g, 'postchorus')
+    .match(/[a-z0-9]+/g) ?? [];
+}
+
+function isRecognizedSunoTagContent(content: string): boolean {
+  const words = getTagWords(content);
+  if (words.length === 0) {
+    return false;
+  }
+
+  return words.some((word) => SUNO_TAG_KEYWORDS.has(word));
+}
+
+function readLeadingWrappedTag(text: string):
+  | { content: string; rest: string; requiresKnownTag: boolean }
+  | undefined {
+  const cleaned = sanitizeLyricText(text);
+  const first = cleaned[0];
+  const pairs: Record<string, { close: string; requiresKnownTag: boolean }> = {
+    '[': { close: ']', requiresKnownTag: false },
+    '(': { close: ')', requiresKnownTag: true },
+    '\uFF08': { close: '\uFF09', requiresKnownTag: true }
+  };
+  const pair = pairs[first];
+  if (!pair) {
+    return undefined;
+  }
+
+  const closeIndex = cleaned.indexOf(pair.close, 1);
+  if (closeIndex < 0) {
+    return undefined;
+  }
+
+  return {
+    content: cleaned.slice(1, closeIndex),
+    rest: cleaned.slice(closeIndex + pair.close.length),
+    requiresKnownTag: pair.requiresKnownTag
+  };
+}
+
+export function stripSunoTagsForLyricDownload(text: string): string {
+  let remaining = sanitizeLyricText(text);
+
+  while (remaining.length > 0) {
+    const tag = readLeadingWrappedTag(remaining);
+    if (!tag) {
+      break;
+    }
+
+    const content = sanitizeLyricText(tag.content);
+    if (!content || (tag.requiresKnownTag && !isRecognizedSunoTagContent(content))) {
+      break;
+    }
+
+    remaining = sanitizeLyricText(tag.rest);
+  }
+
+  return remaining;
+}
+
+export function prepareLyricDownloadLines(lines: LineTiming[]): LineTiming[] {
+  return lines
+    .map((line) => ({
+      text: stripSunoTagsForLyricDownload(line.text),
+      start_s: line.start_s,
+      end_s: line.end_s
+    }))
+    .filter((line) => line.text.length > 0);
+}
+
 function isPunctuationOnlyFragment(text: string): boolean {
   const cleaned = sanitizeLyricText(text);
   return cleaned.length > 0 &&
