@@ -5,9 +5,20 @@ on:
     tags:
       - 'v*' # 触发条件：推送以 v 开头的tag
 
+permissions:
+  contents: write
+
+env:
+  RELEASE_ASSET_NAME: SunoLyricDownloader.zip
+
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+    env:
+      CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+      CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+      CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+      CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
     
     steps:
       - name: Checkout code
@@ -41,26 +52,31 @@ jobs:
       - name: Create ZIP file
         run: pnpm zip
 
+      - name: Generate release notes
+        run: |
+          node scripts/generate-release-notes.js \
+            --version "$VERSION" \
+            --current-tag "$GITHUB_REF_NAME" \
+            --asset-name "$RELEASE_ASSET_NAME" \
+            --output RELEASE_NOTES.md
+
       - name: Upload to Chrome Web Store
+        if: ${{ env.CHROME_EXTENSION_ID != '' && env.CHROME_CLIENT_ID != '' && env.CHROME_CLIENT_SECRET != '' && env.CHROME_REFRESH_TOKEN != '' }}
         uses: mnao305/chrome-extension-upload@v5.0.0
         with:
-          file-path: Tiny-helmet.zip
-          extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
-          client-id: ${{ secrets.CHROME_CLIENT_ID }}
-          client-secret: ${{ secrets.CHROME_CLIENT_SECRET }}
-          refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          file-path: ${{ env.RELEASE_ASSET_NAME }}
+          extension-id: ${{ env.CHROME_EXTENSION_ID }}
+          client-id: ${{ env.CHROME_CLIENT_ID }}
+          client-secret: ${{ env.CHROME_CLIENT_SECRET }}
+          refresh-token: ${{ env.CHROME_REFRESH_TOKEN }}
           publish: true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: Tiny-helmet.zip
+          files: ${{ env.RELEASE_ASSET_NAME }}
           name: Release ${{ env.VERSION }}
-          body: |
-            Release version ${{ env.VERSION }}
-            
-            Changes in this version:
-            - Please check the commit history for detailed changes
+          body_path: RELEASE_NOTES.md
           draft: false
           prerelease: false
         env:
