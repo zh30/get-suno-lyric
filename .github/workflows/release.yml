@@ -71,6 +71,12 @@ jobs:
           refresh-token: ${{ env.CHROME_REFRESH_TOKEN }}
           publish: true
 
+      - name: Skip Chrome Web Store upload
+        if: ${{ env.CHROME_EXTENSION_ID == '' || env.CHROME_CLIENT_ID == '' || env.CHROME_CLIENT_SECRET == '' || env.CHROME_REFRESH_TOKEN == '' }}
+        run: |
+          echo "Chrome Web Store upload skipped because one or more publishing secrets are missing."
+          echo "Set CHROME_EXTENSION_ID, CHROME_CLIENT_ID, CHROME_CLIENT_SECRET, and CHROME_REFRESH_TOKEN to enable automatic Web Store publishing."
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:

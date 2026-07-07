@@ -38,3 +38,10 @@ test('GitHub Release still runs independently of Chrome Web Store secrets', () =
   assert.doesNotMatch(releaseStep, /^\s+if:/m);
   assert.match(releaseStep, /body_path:\s+RELEASE_NOTES\.md/);
 });
+
+test('workflow explains when Chrome Web Store upload is skipped', () => {
+  const skippedStep = getStepBlock('Skip Chrome Web Store upload');
+
+  assert.match(skippedStep, /if:\s+\$\{\{[\s\S]*env\.CHROME_EXTENSION_ID == ''[\s\S]*env\.CHROME_REFRESH_TOKEN == ''[\s\S]*\}\}/);
+  assert.match(skippedStep, /Chrome Web Store upload skipped/);
+});
