@@ -2,3 +2,4 @@ node_modules
 dist
 SunoLyricDownloader.zip
 .DS_Store
+.superpowers/
