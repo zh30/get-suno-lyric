@@ -1,10 +1,11 @@
 # Creator Pro Design Specification
 
-- **Status:** Approved for implementation planning
+- **Status:** Revised after source-model review; awaiting final approval
 - **Date:** 2026-07-12
 - **Product:** Suno Lyric Downloader
 - **Current extension version:** 2.0.9
-- **Commercial model:** Local-first, one-time purchase
+- **Commercial model:** Closed-source Freemium, local-first, one-time purchase
+- **Source transition:** Version 2.0.9 is the final open-source product release; an `oss-source-cutoff` tag records the last public repository state; extension version 3.0.0 and later are proprietary
 - **Launch price:** USD 59
 - **Regular price:** USD 79
 
@@ -18,6 +19,8 @@ The free extension keeps its current LRC and SRT download behavior. Creator Pro 
 2. **Video Studio** uses the corrected lyric project to create template-based 1080p lyric videos locally, without uploading songs or lyrics.
 
 The product uses Lemon Squeezy for checkout and license creation. A minimal Cloudflare Worker validates licenses and issues locally verifiable signed entitlements. Song data, lyric data, audio, projects, and rendered videos never reach the licensing service.
+
+The existing single GitHub repository becomes private before proprietary extension version 3.0.0 development begins. Version 2.0.9 remains the final open-source product release; all repository content published before the recorded `oss-source-cutoff` remains subject to the representations and permissions under which it was published. From extension version 3.0.0 onward, the same Chrome Web Store extension becomes closed-source Freemium: all existing 2.0.9 user functionality remains free, while Creator Pro requires a license.
 
 The primary product promise is:
 
@@ -41,7 +44,7 @@ Creator Pro monetizes finishing and reuse rather than taking away the free acqui
 
 ### 3.1 Product Goals
 
-- Preserve the existing free LRC and SRT downloads without reduced quality, artificial limits, or forced account creation.
+- Preserve all existing 2.0.9 user functionality, including LRC download, SRT download, and automatic timing repair, without reduced quality, artificial limits, or forced account creation.
 - Let a creator open the current Suno song in a dedicated full-screen workspace with the best available lyric, word, waveform, and metadata snapshot.
 - Create one canonical, editable lyric project that drives every text and video output.
 - Detect common lyric and timing defects before the user imports an inaccurate file elsewhere.
@@ -139,9 +142,11 @@ Free users must never lose the current download formats or receive intentionally
 - The UI displays the USD 79 regular price and labels USD 59 as the launch price.
 - The launch period uses a published end date. It does not use a countdown animation, fake inventory, or fabricated urgency.
 - Regular price is USD 79 after the launch period.
-- A purchase grants perpetual use of all Creator Pro 1.x features included in the installed extension.
-- A future 2.0 may be a voluntary paid upgrade. Existing 1.x capabilities remain usable.
+- A purchase grants perpetual use of Creator Pro Generation 1 capabilities (`creator_pro_g1`) included in compatible extension releases.
+- A future Creator Pro Generation 2 may be a voluntary paid upgrade. Generation 1 capabilities remain usable.
 - One license supports two Chrome installation instances. The product does not claim to identify two physical computers.
+
+Extension semantic versions and paid-entitlement generations are separate version axes. `3.0.0` is the first proprietary extension release; `creator_pro_g1` identifies the purchased feature generation and is not an extension version.
 
 ### 6.3 Refund Policy
 
@@ -153,6 +158,68 @@ Free users must never lose the current download formats or receive intentionally
 - An optional, non-identifying refund reason may be collected through Lemon Squeezy.
 
 The product accepts limited refund abuse as a lower cost than making legitimate buyers distrust the purchase.
+
+### 6.4 Source and Repository Transition
+
+#### Historical Boundary
+
+- The current repository has no standalone `LICENSE` file, but `package.json` declares `MIT` and the English and Chinese README describe the project as free and open source.
+- All commits currently recorded in Git history are authored by Henry Zhang using the same project email; no external code contributor appears in the repository history.
+- Version 2.0.9, at immutable tag SHA `98813c64624c4b98c7c80cdd63dd337e2198e8d9`, is the final open-source product release.
+- Public commits after the 2.0.9 tag are not silently reclassified. Immediately before privatization, create an immutable annotated `oss-source-cutoff` tag and publish its resolved SHA in the transition notice. All source published through that cutoff remains subject to the representations and permissions under which it was published.
+- Making the repository private does not revoke or delete copies, forks, or permissions that users already received for historical source.
+- No existing tag is moved or rewritten, and no attempt is made to retroactively label public source proprietary or restrict lawful use of historical copies.
+
+This specification records a product decision, not legal advice. The owner should obtain a focused intellectual-property review before publishing proprietary 3.0.0 terms if formal legal certainty is required.
+
+#### One-Repository Operating Model
+
+- Keep the existing `zh30/get-suno-lyric` repository and its full Git history.
+- Change the repository visibility to private only after the historical-source archive and transition notice are published.
+- Do not create a separate Pro repository, Community repository, private branch, or encrypted source tree.
+- Continue using the existing Chrome Web Store item and extension ID so installed users receive normal automatic updates.
+- Produce one 3.0.0 store build containing both always-free capabilities and bundled Creator Pro capabilities.
+- Gate Pro execution with the signed entitlement described in Section 12; do not create separate Free and Pro extension packages.
+
+GitHub does not support public and private branches within one repository. Once the repository becomes private, its tags and releases also cease to be an official public source location. Before that change, publish a 2.0.9 source ZIP at a stable public URL controlled by the developer and link it from the transition notice. The archive includes the complete MIT license text, a provenance notice containing the immutable tag name and SHA, and a published SHA-256 archive checksum. Adding the license and provenance files to the archive does not move or rewrite the existing `v2.0.9` tag.
+
+#### Proprietary 3.0.0 License State
+
+After the repository is private, create one dedicated license-boundary commit before any Pro implementation. That commit must:
+
+- Set the extension and package version to `3.0.0`.
+- Set `package.json` to `"private": true`.
+- Replace `"license": "MIT"` with `"license": "UNLICENSED"`.
+- Add a root, lawyer-reviewed proprietary EULA that applies to 3.0.0 and later.
+- Add a historical-source notice identifying 2.0.9 as the last open-source product version, recording the `oss-source-cutoff` SHA, and linking to the source archive.
+- Preserve all third-party dependency licenses and produce a third-party notices file for the distributed extension.
+- Update README statements so they describe the current Freemium product accurately rather than calling 3.0.0 open source.
+
+The proprietary license must not claim ownership of third-party dependencies or retroactively alter historical open-source permissions.
+
+#### Store Package Visibility
+
+Closing the repository does not make packaged JavaScript secret. Manifest V3 requires executable JavaScript and WebAssembly to ship inside the extension package. Users can inspect or modify an unpacked copy, and Chrome Web Store reviewers must be able to discern the extension's functionality.
+
+- Normal production minification is allowed.
+- Deliberate code obfuscation or functionality concealment is not part of the design.
+- Pro code is never downloaded after purchase or evaluated from a remote response.
+- Lemon Squeezy credentials, Cloudflare credentials, and the entitlement-signing private key remain server-side secrets.
+- The DRM goal remains prevention of casual sharing, not prevention of determined reverse engineering.
+
+#### Public Transition Communication
+
+Publish one clear transition announcement before changing repository visibility. It must state:
+
+- 2.0.9 is the final open-source product release, and the published `oss-source-cutoff` SHA records the last public repository state.
+- Extension version 3.0.0 and later use a proprietary license.
+- All existing 2.0.9 user functionality remains free, including LRC download, SRT download, and automatic timing repair.
+- Creator Pro is an optional one-time purchase.
+- Existing users keep the same extension and receive normal updates.
+- Song data remains local and only licensing uses developer-controlled services.
+- The stable URL for the 2.0.9 source archive.
+
+The announcement must not claim the project was never open source or imply that historical forks are unauthorized merely because the main repository later becomes private.
 
 ## 7. Primary User Journey
 
@@ -176,7 +243,7 @@ The purchase gate appears only when the user attempts to:
 The purchase surface states:
 
 - USD 59 launch price and USD 79 regular price.
-- One-time purchase for Creator Pro 1.x.
+- One-time purchase for Creator Pro Generation 1.
 - Two Chrome installations.
 - No song or lyric uploads.
 - Lemon Squeezy handles payment in a new tab.
@@ -542,7 +609,7 @@ Automatic checkout requests use at least 128 bits of cryptographic randomness, e
 ### 12.4 Refresh and Offline Use
 
 - The extension attempts a quiet refresh every 30 days and after relevant license errors when the network is available.
-- A last-known-valid perpetual Creator Pro 1.x entitlement has no hard offline expiration. License-service downtime or loss of network access must not disable purchased local features.
+- A last-known-valid perpetual Creator Pro Generation 1 entitlement has no hard offline expiration. License-service downtime or loss of network access must not disable purchased local features.
 - The Worker uses Lemon Squeezy's authenticated API and stored license record ID for later status checks; the extension does not need to retain the raw License Key after activation.
 - Refunds, chargebacks, and disabled licenses revoke access only after the extension receives and verifies a successful signed status response from the Worker.
 - The product does not force an online check on every launch or export.
@@ -705,18 +772,35 @@ Every release candidate runs:
 
 The implementation is one product but is intentionally decomposed into independently testable increments:
 
-0. **Video feasibility gate:** build the complete bounded audio/video spike first and validate 1080p rendering, memory, A/V synchronization, containers, and codec fallback across the target device matrix. If this gate fails, return to design before selling a product that promises Video Studio.
-1. **Canonical project foundation:** preserve source words and waveform, define project schema, IndexedDB repository, migrations, command history, and QA tests.
-2. **Lyric Studio:** full-screen shell, issue queue, waveform playback, line editing, word editing gates, autosave, and professional text exports.
-3. **Licensing:** Lemon Squeezy configuration, Cloudflare Worker, D1 activation mapping, signed entitlements, short-lived automatic checkout requests, purchase surface, and installation manager.
-4. **Video Studio:** template model, preview, worker renderer, File System Access output, and failure recovery using the validated spike architecture.
-5. **Policy and launch readiness:** remove all cookie and token debug logging, update privacy and sales pages, update Chrome Web Store copy, verify diagnostics, run the closed beta, and fix release blockers.
+0. **Source transition:** verify ownership one final time; publish the 2.0.9 source archive, checksum, and 14-day transition announcement; record the final public cutoff SHA; change the existing repository to private; then create one explicit 3.0.0 proprietary-license boundary commit before any Pro implementation.
+1. **Video feasibility gate:** build the complete bounded audio/video spike first and validate 1080p rendering, memory, A/V synchronization, containers, and codec fallback across the target device matrix. If this gate fails, return to design before selling a product that promises Video Studio.
+2. **Canonical project foundation:** preserve source words and waveform, define project schema, IndexedDB repository, migrations, command history, and QA tests.
+3. **Lyric Studio:** full-screen shell, issue queue, waveform playback, line editing, word editing gates, autosave, and professional text exports.
+4. **Licensing:** Lemon Squeezy configuration, Cloudflare Worker, D1 activation mapping, signed entitlements, short-lived automatic checkout requests, purchase surface, and installation manager.
+5. **Video Studio:** template model, preview, worker renderer, File System Access output, and failure recovery using the validated spike architecture.
+6. **Policy and launch readiness:** remove all cookie and token debug logging, update privacy and sales pages, update Chrome Web Store copy, verify diagnostics, run the closed beta, and fix release blockers.
 
 The public paid release occurs only after Lyric Studio, licensing, and the approved static-background Video Studio pass their release gates. Each increment remains independently understandable and testable.
 
 ## 17. Rollout Plan
 
-### 17.1 Closed Beta
+### 17.1 Source Transition
+
+Complete these steps before proprietary feature development is pushed:
+
+1. Confirm that `v2.0.9` still resolves to immutable SHA `98813c64624c4b98c7c80cdd63dd337e2198e8d9`; do not move or recreate the tag.
+2. Build the 2.0.9 historical source archive, add the complete MIT license text and provenance notice outside the tagged tree, and publish the archive SHA-256 checksum.
+3. Publish the source archive and checksum at a stable public URL outside the soon-private repository.
+4. Publish the source-model announcement at least 14 calendar days before privatization so users can save or fork the historical source.
+5. Freeze public source changes, create the annotated `oss-source-cutoff` tag, and publish its resolved SHA in the transition notice.
+6. Change the existing repository to private in GitHub settings.
+7. Confirm that local clones, GitHub Actions, secrets, tags, issues, and release automation still work after the visibility change.
+8. Create a dedicated private `chore: establish proprietary 3.0.0 license boundary` commit containing the version change, package metadata, EULA, historical-source notice, README changes, support-link changes, and third-party notices.
+9. Begin Creator Pro implementation only after that boundary commit exists.
+
+Changing GitHub visibility is an external action and requires an explicit final confirmation immediately before execution. It is not performed automatically as part of documentation or implementation planning.
+
+### 17.2 Closed Beta
 
 - Invite 20 to 30 current users who create lyric videos or subtitle packages.
 - Provide time-limited test licenses at no cost.
@@ -724,7 +808,7 @@ The public paid release occurs only after Lyric Studio, licensing, and the appro
 - Collect structured task checklists, tester-submitted timing, and optional user-authored feedback, not song contents or automatic behavior telemetry.
 - Fix all data-loss, activation, and supported-output blockers before public sale.
 
-### 17.2 Public Launch
+### 17.3 Public Launch
 
 - Publish the launch end date and USD 59 price.
 - Keep existing free download entry points unchanged.
@@ -747,12 +831,20 @@ The public paid release occurs only after Lyric Studio, licensing, and the appro
 | License sharing | Bind signed entitlements to random installations, limit activations, and make legitimate release/replacement easy. Do not add invasive fingerprinting. |
 | Determined client-side cracking | Accept that local software cannot provide perfect DRM; optimize for honest customers and casual-sharing prevention. |
 | One-person support burden | Use deterministic errors, local diagnostic bundles, a limited format matrix, closed beta, and clear support boundaries. |
+| Existing users feel an open-source promise was withdrawn | Preserve and link the final 2.0.9 source archive, announce the boundary before privatization, keep existing free features, and avoid rewriting history. |
+| Historical forks continue independently | Accept lawful historical forks and compete through the maintained store build, trusted updates, support, templates, and Creator Pro workflow. |
+| Proprietary package is mistaken for unreadable or uninspectable code | State that the source repository is private while the distributed extension remains technically inspectable; use only permitted minification. |
 
 ## 19. Acceptance Criteria
 
 Creator Pro 1.0 is complete only when all of the following are true:
 
-- Free LRC and SRT download behavior remains available and passes existing regression tests.
+- All 2.0.9 user functionality, including LRC download, SRT download, and automatic timing repair, remains free and passes existing regression tests.
+- Version 2.0.9 has a verified public source archive with MIT text, provenance, and SHA-256 checksum at a stable URL before the repository becomes private.
+- The immutable 2.0.9 tag SHA and final `oss-source-cutoff` SHA are published without rewriting Git history.
+- The transition announcement accurately describes the historical open-source and future proprietary boundary.
+- The current repository is private before proprietary 3.0.0 code is pushed, without creating a second source repository.
+- Package metadata, proprietary terms, historical-source notice, third-party notices, README, support links, and Chrome Web Store copy all agree on the Freemium source model.
 - A supported current Suno song opens in a full-screen local Studio without re-entry of lyrics.
 - The imported project preserves available line timing, word timing, waveform, source lyrics, and provenance.
 - QA identifies the defined error classes and never silently overwrites user edits.
@@ -779,7 +871,7 @@ The user explicitly approved these decisions during design:
 - Limit Video Studio to template generation rather than a general video editor.
 - Use an independent full-screen extension workspace.
 - Preserve one primary promise while providing several paid reasons.
-- Keep the existing free LRC and SRT downloads.
+- Keep all existing 2.0.9 user functionality free, including LRC download, SRT download, and automatic timing repair.
 - Let users view QA and template previews before the purchase gate.
 - Use the Production Desk layout with shared Lyrics and Video modes.
 - Use transparent USD 59 launch and USD 79 regular pricing without artificial scarcity.
@@ -789,6 +881,11 @@ The user explicitly approved these decisions during design:
 - Avoid hardware fingerprinting.
 - Limit one license to two Chrome installation instances with user-controlled release and replacement.
 - Offer a 14-day refund period.
+- Treat 2.0.9 as the final open-source product release, record the final public-repository cutoff SHA, and treat extension version 3.0.0 onward as proprietary.
+- Keep one repository, make it private before proprietary development, and keep one Chrome Web Store extension containing free and paid capabilities.
+- Preserve all existing 2.0.9 free capabilities after the source transition.
+- Publish a stable 2.0.9 source archive and a transparent transition announcement before changing repository visibility.
+- Keep extension semantic versions separate from Creator Pro entitlement generations; the first paid entitlement is `creator_pro_g1`.
 - Proceed to a written specification and implementation planning after document review.
 
 ## 21. Primary References
@@ -803,4 +900,8 @@ The user explicitly approved these decisions during design:
 - [WebCodecs specification](https://www.w3.org/TR/webcodecs/)
 - [Chrome File System Access guidance](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access)
 - [Chrome Manifest V3 remote-code requirements](https://developer.chrome.com/docs/webstore/program-policies/mv3-requirements)
+- [Chrome Web Store code-readability requirements](https://developer.chrome.com/docs/webstore/program-policies/code-readability)
+- [GitHub licensing a repository](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository)
+- [GitHub Terms: public repository and contribution licenses](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service)
+- [Open Source Initiative FAQ](https://opensource.org/faq)
 - [Suno terms](https://suno.com/terms)
