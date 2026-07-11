@@ -1,6 +1,6 @@
 # Creator Pro Design Specification
 
-- **Status:** Revised after source-model review; awaiting final approval
+- **Status:** Approved for implementation planning
 - **Date:** 2026-07-12
 - **Product:** Suno Lyric Downloader
 - **Current extension version:** 2.0.9
