@@ -136,10 +136,12 @@ pnpm build
 
 ```bash
 pnpm source:archive
-cd release-artifacts/get-suno-lyric/v2.0.9
-shasum -a 256 -c get-suno-lyric-2.0.9-source.zip.sha256
-unzip -Z1 get-suno-lyric-2.0.9-source.zip
-git -C ../../.. rev-parse --verify 'refs/tags/v2.0.9^{commit}'
+(
+  cd release-artifacts/get-suno-lyric/v2.0.9
+  shasum -a 256 -c get-suno-lyric-2.0.9-source.zip.sha256
+  unzip -Z1 get-suno-lyric-2.0.9-source.zip
+  git -C ../../.. rev-parse --verify 'refs/tags/v2.0.9^{commit}'
+)
 ```
 
 Expected: the checksum reports `OK`; the complete entry list matches the validated commit tree plus the two metadata files; Git prints the approved commit SHA; the archive SHA is `055c7d066cf3a5b6de8389ce753af7547999fc319212cee76dde1eed921c3eb5`. Record that deterministic STORE-mode digest in the implementation report.
