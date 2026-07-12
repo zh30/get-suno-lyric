@@ -3,3 +3,4 @@ dist
 SunoLyricDownloader.zip
 .DS_Store
 .superpowers/
+.worktrees/

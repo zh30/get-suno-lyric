@@ -118,19 +118,20 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const {
-  ARCHIVE_FILENAME,
-  EXPECTED_TAG,
-  EXPECTED_TAG_SHA,
-  assertExpectedTag,
-  buildProvenance,
-  createSourceArchive,
-  sha256File,
-} = require('./source-archive.js');
-
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const modulePath = path.join(repoRoot, 'scripts/source-archive.js');
+
+function loadSourceArchive() {
+  assert.equal(fs.existsSync(modulePath), true, 'scripts/source-archive.js must exist');
+  return require(modulePath);
+}
 
 test('locks the historical source to the approved v2.0.9 commit', () => {
+  const {
+    EXPECTED_TAG,
+    EXPECTED_TAG_SHA,
+    assertExpectedTag,
+  } = loadSourceArchive();
   assert.equal(EXPECTED_TAG, 'v2.0.9');
   assert.equal(EXPECTED_TAG_SHA, '98813c64624c4b98c7c80cdd63dd337e2198e8d9');
   assert.equal(assertExpectedTag(repoRoot), EXPECTED_TAG_SHA);
@@ -141,6 +142,7 @@ test('locks the historical source to the approved v2.0.9 commit', () => {
 });
 
 test('describes added archive metadata without rewriting the tag', () => {
+  const { buildProvenance } = loadSourceArchive();
   const text = buildProvenance();
   assert.match(text, /v2\.0\.9/);
   assert.match(text, /98813c64624c4b98c7c80cdd63dd337e2198e8d9/);
@@ -149,6 +151,13 @@ test('describes added archive metadata without rewriting the tag', () => {
 });
 
 test('creates byte-stable archives with source, license, provenance, and checksum', async () => {
+  const {
+    ARCHIVE_FILENAME,
+    EXPECTED_TAG,
+    EXPECTED_TAG_SHA,
+    createSourceArchive,
+    sha256File,
+  } = loadSourceArchive();
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'suno-source-archive-'));
   const first = await createSourceArchive({ repoRoot, outputDir: path.join(tempRoot, 'first') });
   const second = await createSourceArchive({ repoRoot, outputDir: path.join(tempRoot, 'second') });
@@ -180,7 +189,7 @@ test('creates byte-stable archives with source, license, provenance, and checksu
 });
 ```
 
-- [ ] **Step 3: Run the test and confirm it fails for the missing module**
+- [ ] **Step 3: Run the test and confirm an assertion fails before implementation**
 
 Run:
 
@@ -188,7 +197,7 @@ Run:
 node --test scripts/test-source-archive.mjs
 ```
 
-Expected: non-zero exit with `Cannot find module './source-archive.js'`.
+Expected: non-zero exit with the assertion message `scripts/source-archive.js must exist`; the test process itself loads correctly.
 
 - [ ] **Step 4: Implement the deterministic archive library**
 
@@ -428,7 +437,11 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (file) => fs.readFileSync(path.join(repoRoot, file), 'utf8');
+const read = (file) => {
+  const filePath = path.join(repoRoot, file);
+  assert.equal(fs.existsSync(filePath), true, `${file} must exist`);
+  return fs.readFileSync(filePath, 'utf8');
+};
 
 test('transition announcement preserves the approved trust promises', () => {
   const announcement = read('SOURCE_TRANSITION.md');
@@ -464,7 +477,7 @@ Run:
 node --test scripts/test-source-transition-docs.mjs
 ```
 
-Expected: non-zero exit because `SOURCE_TRANSITION.md` does not exist.
+Expected: non-zero exit with the assertion message `SOURCE_TRANSITION.md must exist`; no uncaught filesystem error occurs.
 
 - [ ] **Step 3: Write the bilingual announcement**
 
@@ -619,13 +632,22 @@ import path from 'node:path';
 import test from 'node:test';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const {
-  readCutoff,
-  renderHistoricalSourceNotice,
-  writeCutoffRecord,
-} = require('./write-source-cutoff-record.js');
+const modulePath = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  'write-source-cutoff-record.js',
+);
+
+function loadCutoffModule() {
+  assert.equal(
+    fs.existsSync(modulePath),
+    true,
+    'scripts/write-source-cutoff-record.js must exist',
+  );
+  return require(modulePath);
+}
 
 function git(repoRoot, args) {
   return execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' }).trim();
@@ -647,6 +669,11 @@ function makeRepo({ annotated = true } = {}) {
 }
 
 test('reads an annotated cutoff and renders the exact historical notice', () => {
+  const {
+    readCutoff,
+    renderHistoricalSourceNotice,
+    writeCutoffRecord,
+  } = loadCutoffModule();
   const repoRoot = makeRepo();
   const record = readCutoff(repoRoot);
   const expectedCommit = git(repoRoot, ['rev-parse', 'oss-source-cutoff^{commit}']);
@@ -669,16 +696,19 @@ test('reads an annotated cutoff and renders the exact historical notice', () => 
 });
 
 test('rejects a lightweight cutoff tag', () => {
+  const { readCutoff } = loadCutoffModule();
   assert.throws(() => readCutoff(makeRepo({ annotated: false })), /must be an annotated tag/);
 });
 
 test('rejects a dirty working tree', () => {
+  const { readCutoff } = loadCutoffModule();
   const repoRoot = makeRepo();
   fs.writeFileSync(path.join(repoRoot, 'uncommitted.txt'), 'dirty\n');
   assert.throws(() => readCutoff(repoRoot), /working tree must be clean/);
 });
 
 test('refuses to replace a record for another commit', () => {
+  const { writeCutoffRecord } = loadCutoffModule();
   const repoRoot = makeRepo();
   const outputPath = path.join(os.tmpdir(), `${path.basename(repoRoot)}-cutoff.json`);
   fs.writeFileSync(outputPath, `${JSON.stringify({ commit: '0'.repeat(40) })}\n`);
@@ -695,7 +725,7 @@ test('refuses to replace a record for another commit', () => {
 node --test scripts/test-source-cutoff-record.mjs
 ```
 
-Expected: non-zero exit for the missing implementation.
+Expected: non-zero exit with the assertion message `scripts/write-source-cutoff-record.js must exist`; the test file itself executes normally.
 
 - [ ] **Step 3: Implement the cutoff-record library and CLI**
 
@@ -1042,7 +1072,11 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (file) => fs.readFileSync(path.join(repoRoot, file), 'utf8');
+const read = (file) => {
+  const filePath = path.join(repoRoot, file);
+  assert.equal(fs.existsSync(filePath), true, `${file} must exist`);
+  return fs.readFileSync(filePath, 'utf8');
+};
 
 test('package and extension begin the proprietary line at 3.0.0', () => {
   const packageJson = JSON.parse(read('package.json'));
@@ -1091,7 +1125,7 @@ test('readme no longer describes 3.x as an open-source product', () => {
 node --test scripts/test-proprietary-boundary.mjs
 ```
 
-Expected: failures for version `2.0.9`, missing `private`, missing legal files, and missing `dist` notices.
+Expected: assertion failures for version `2.0.9`, missing `private`, missing legal files, and missing `dist` notices; no uncaught missing-file error occurs.
 
 - [ ] **Step 3: Add the reviewed EULA verbatim**
 
@@ -1189,13 +1223,22 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const {
-  findLicenseFile,
-  normalizePackages,
-  renderThirdPartyNotices,
-} = require('./generate-third-party-notices.js');
+const modulePath = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  'generate-third-party-notices.js',
+);
+
+function loadNoticeModule() {
+  assert.equal(
+    fs.existsSync(modulePath),
+    true,
+    'scripts/generate-third-party-notices.js must exist',
+  );
+  return require(modulePath);
+}
 
 function makePackage(root, { name, version, licenseFile, licenseText }) {
   const packagePath = path.join(root, `${name}-${version}`);
@@ -1211,6 +1254,7 @@ function makePackage(root, { name, version, licenseFile, licenseText }) {
 }
 
 test('findLicenseFile uses the first sorted recognized license file', () => {
+  const { findLicenseFile } = loadNoticeModule();
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'notice-file-test-'));
   const packagePath = makePackage(root, {
     name: 'alpha',
@@ -1226,6 +1270,7 @@ test('findLicenseFile uses the first sorted recognized license file', () => {
 });
 
 test('normalizes, deduplicates, sorts, and renders packages without local paths', () => {
+  const { normalizePackages, renderThirdPartyNotices } = loadNoticeModule();
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'notice-render-test-'));
   const zeta = makePackage(root, {
     name: 'zeta',
@@ -1266,7 +1311,7 @@ test('normalizes, deduplicates, sorts, and renders packages without local paths'
 });
 ```
 
-Run this test before implementation and expect `Cannot find module './generate-third-party-notices.js'`.
+Run this test before implementation and expect the assertion message `scripts/generate-third-party-notices.js must exist`; the test process itself must not crash while loading.
 
 - [ ] **Step 2: Implement the notice generator**
 
