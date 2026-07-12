@@ -4,18 +4,21 @@
   "description": "A Chrome browser extension that downloads synchronized lyrics from Suno.com in LRC or SRT formats.",
   "main": "index.js",
   "scripts": {
-    "test": "pnpm test:release-notes && pnpm test:release-workflow && pnpm test:lyric-timing && pnpm test:source-archive && pnpm test:source-transition-docs",
+    "test": "pnpm test:release-notes && pnpm test:release-workflow && pnpm test:lyric-timing && pnpm test:source-archive && pnpm test:source-transition-docs && pnpm test:source-cutoff",
     "test:release-notes": "node --test scripts/test-release-notes.mjs",
     "test:release-workflow": "node --test scripts/test-release-workflow.mjs",
     "test:lyric-timing": "node --test scripts/test-lyric-timing.mjs",
     "test:source-archive": "node --test scripts/test-source-archive.mjs",
     "test:source-transition-docs": "node --test scripts/test-source-transition-docs.mjs",
+    "test:source-cutoff": "node --test scripts/test-source-cutoff-record.mjs",
     "tsc": "tsc",
     "dev": "rspack build --watch --mode development",
     "build": "rspack build --mode production",
     "zip": "pnpm build && node scripts/zip.js",
     "release:notes": "node scripts/generate-release-notes.js",
-    "source:archive": "node scripts/package-source-archive.js"
+    "source:archive": "node scripts/package-source-archive.js",
+    "source:cutoff-record": "node scripts/write-source-cutoff-record.js",
+    "source:historical-notice": "node scripts/write-historical-source-notice.js"
   },
   "keywords": [
     "browser",
