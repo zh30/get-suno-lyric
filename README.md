@@ -2,7 +2,7 @@
 
 > **Source-model notice:** Version 2.0.9 is the final open-source product release. Existing download features remain free; version 3.0.0 and later will use a proprietary Freemium model. Read the [full transition announcement](SOURCE_TRANSITION.md).
 >
-> **源码模式变更说明：** 2.0.9 是最后一个开源产品版本。现有歌词下载功能将继续免费；3.0.0 及以后版本采用闭源 Freemium 模式。请阅读[完整迁移公告](SOURCE_TRANSITION.md)。
+> **源码模式变更说明：** 2.0.9 是最后一个开源产品版本。现有歌词下载功能继续免费；3.0.0 及以后版本将采用闭源 Freemium 模式。请阅读[完整迁移公告](SOURCE_TRANSITION.md)。
 
 Download synchronized lyrics from Suno song pages as `LRC` or `SRT` files.
 
@@ -135,7 +135,7 @@ No. The extension uses your existing Suno session in the browser. If you are not
 
 ### Support the Project
 
-Suno Lyric Downloader 2.0.9 is the final open-source product release. The existing LRC, SRT, and automatic timing-repair features remain free, while Creator Pro is a future optional one-time purchase. See the [source-model transition](SOURCE_TRANSITION.md) for the historical source boundary.
+Suno Lyric Downloader 2.0.9 is the final open-source product release. The existing LRC, SRT, and automatic timing-repair features remain free, while Creator Pro is planned as an optional one-time purchase. See the [source-model transition](SOURCE_TRANSITION.md) for the historical source boundary.
 
 Sponsorship is optional, but it helps me keep the extension updated as Suno changes, fix issues faster, and continue improving the user experience.
 
@@ -290,7 +290,7 @@ abc123-lyrics-suno-歌词下载器.srt
 
 ### 赞助支持
 
-Suno Lyric Downloader 2.0.9 是最后一个开源产品版本。现有 LRC、SRT 和自动时间轴修复功能将继续免费，Creator Pro 则是后续可选的一次性付费功能。历史源码边界请参阅[源码模式迁移说明](SOURCE_TRANSITION.md)。
+Suno Lyric Downloader 2.0.9 是最后一个开源产品版本。现有 LRC、SRT 和自动时间轴修复功能继续免费，Creator Pro 计划作为可选的一次性付费功能推出。历史源码边界请参阅[源码模式迁移说明](SOURCE_TRANSITION.md)。
 
 赞助完全自愿，但它能帮助我在 Suno 页面或接口变化时更快适配，持续修复问题，并继续优化使用体验。
 

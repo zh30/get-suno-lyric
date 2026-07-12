@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Preserve an independently verifiable public copy of the final open-source release, announce the source-model change transparently, wait a full 14-day notice period, make the existing repository private, and establish a tested proprietary `3.0.0` boundary before any Creator Pro code is added.
+**Goal:** Preserve an independently verifiable public copy of the final open-source release, announce the source-model change transparently, wait at least 14 complete 24-hour periods (1,209,600 seconds), make the existing repository private, and establish a tested proprietary `3.0.0` boundary before any Creator Pro code is added.
 
 **Architecture:** A deterministic Node.js archive tool reads the immutable `v2.0.9` Git tree, adds narrowly scoped historical-license and provenance metadata, and emits a ZIP, checksum, and machine-readable manifest. The artifacts live in a public Cloudflare R2 bucket behind `downloads.zhanghe.dev`, so they remain reachable after GitHub becomes private. Two annotated Git tags record the start of the public notice and the final public-source cutoff. Only after the public artifacts, notice period, cutoff record, and externally reviewed EULA are all in place may the repository be made private and a single metadata-only `3.0.0` license-boundary commit be created.
 
@@ -14,7 +14,7 @@
 - Never move, recreate, force-push, delete, or rewrite `v2.0.9`, `source-transition-notice`, or `oss-source-cutoff`.
 - Do not claim that making the repository private revokes historical rights, forks, or copies.
 - Do not change GitHub visibility, push a tag, publish an announcement, upload to R2, or deploy anything without explicit user approval in the current session.
-- The public notice must remain available for at least 14 complete 24-hour periods before `oss-source-cutoff` is created.
+- The public notice must remain available for at least 14 complete 24-hour periods (1,209,600 seconds) before `oss-source-cutoff` is created.
 - Freeze ordinary public development after `source-transition-notice`; only critical fixes and transition-document corrections may enter `main` before the cutoff.
 - Do not add Creator Pro implementation in this plan. The first proprietary commit is metadata, notices, packaging, and versioning only.
 - Preserve the free `2.0.9` behavior: LRC download, SRT download, and automatic timing repair.
@@ -68,346 +68,81 @@
 - Modify: `package.json`
 - Modify: `.gitignore`
 
-**Interfaces:**
+**Interfaces and canonical values:**
 
-- Consumes: immutable Git tag `v2.0.9` at SHA `98813c64624c4b98c7c80cdd63dd337e2198e8d9`; existing `archiver` dependency.
-- Produces: `assertExpectedTag(repoRoot, expectedSha?) -> string`, `buildProvenance() -> string`, `sha256File(filePath) -> string`, and `createSourceArchive({ repoRoot?, outputDir? }) -> Promise<{ archivePath, checksumPath, manifestPath, sha256 }>`.
+- Consume only the peeled commit returned by resolving `refs/tags/v2.0.9^{commit}` once and validating it as `98813c64624c4b98c7c80cdd63dd337e2198e8d9`.
+- Export `EXPECTED_TAG`, `EXPECTED_TAG_REF`, `EXPECTED_TAG_SHA`, `ARCHIVE_FILENAME`, `ARCHIVE_PREFIX`, `ARCHIVE_MANIFEST_FILENAME`, `SOURCE_ARCHIVE_URL`, `SOURCE_ARCHIVE_CHECKSUM_URL`, `SOURCE_ARCHIVE_MANIFEST_URL`, and `SOURCE_CUTOFF_URL` from `scripts/source-archive.js`.
+- Export `assertExpectedTag(repoRoot, expectedSha?)`, `buildProvenance()`, `sha256File(filePath)`, and `createSourceArchive({ repoRoot?, outputDir? })`.
+- Emit ZIP entries in Git tree order under `get-suno-lyric-2.0.9/`, all with STORE compression, timestamp `2000-01-01T00:00:00Z`, and mode `0644`.
 
 - [ ] **Step 1: Add the historical MIT text**
 
-Create `scripts/assets/MIT-LICENSE-2.0.9.txt` with the standard MIT License text and this copyright line:
+Keep the approved MIT text in `scripts/assets/MIT-LICENSE-2.0.9.txt`. The provenance must identify `LICENSE-MIT.txt` and `SOURCE_PROVENANCE.txt` as metadata added outside the historical Git tree; it must never claim that the tag contained a root license file.
 
-```text
-MIT License
+- [ ] **Step 2: Write the failing complete archive contract**
 
-Copyright (c) 2025-2026 Henry Zhang
+`scripts/test-source-archive.mjs` must independently verify:
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+- the fully qualified historical ref and approved peeled SHA;
+- every canonical filename and public URL;
+- a controlled temporary-repository race in which `v2.0.9` moves to a commit with both a new path and a changed tracked blob immediately after validation, proving the entry list and every later blob read stay pinned to the returned commit;
+- the complete ordered entry list derived from `git ls-tree` plus exactly `LICENSE-MIT.txt` and `SOURCE_PROVENANCE.txt`;
+- every Git-tree file byte-for-byte against `git show <validated-commit>:<path>`;
+- exact historical license and provenance bytes;
+- STORE method, fixed timestamp, and `0644` mode for every central-directory entry;
+- byte stability, exact checksum content, manifest filename, tag, commit, archive URL, checksum URL, SHA consistency, and the approved STORE-mode SHA `055c7d066cf3a5b6de8389ce753af7547999fc319212cee76dde1eed921c3eb5`.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
-The archive provenance must make clear that this file is archival metadata added outside the tagged tree; it must not claim that the existing tag contained a root `LICENSE` file.
-
-- [ ] **Step 2: Write the failing archive tests**
-
-Create `scripts/test-source-archive.mjs`:
+Register every temporary repository and archive directory immediately with:
 
 ```js
-import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import test from 'node:test';
-import { execFileSync } from 'node:child_process';
-import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
-
-const require = createRequire(import.meta.url);
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const modulePath = path.join(repoRoot, 'scripts/source-archive.js');
-
-function loadSourceArchive() {
-  assert.equal(fs.existsSync(modulePath), true, 'scripts/source-archive.js must exist');
-  return require(modulePath);
-}
-
-test('locks the historical source to the approved v2.0.9 commit', () => {
-  const {
-    EXPECTED_TAG,
-    EXPECTED_TAG_SHA,
-    assertExpectedTag,
-  } = loadSourceArchive();
-  assert.equal(EXPECTED_TAG, 'v2.0.9');
-  assert.equal(EXPECTED_TAG_SHA, '98813c64624c4b98c7c80cdd63dd337e2198e8d9');
-  assert.equal(assertExpectedTag(repoRoot), EXPECTED_TAG_SHA);
-  assert.throws(
-    () => assertExpectedTag(repoRoot, '0'.repeat(40)),
-    /does not match the approved historical commit/,
-  );
-});
-
-test('describes added archive metadata without rewriting the tag', () => {
-  const { buildProvenance } = loadSourceArchive();
-  const text = buildProvenance();
-  assert.match(text, /v2\.0\.9/);
-  assert.match(text, /98813c64624c4b98c7c80cdd63dd337e2198e8d9/);
-  assert.match(text, /added to this archive outside the tagged Git tree/);
-  assert.match(text, /does not move or rewrite the tag/);
-});
-
-test('creates byte-stable archives with source, license, provenance, and checksum', async () => {
-  const {
-    ARCHIVE_FILENAME,
-    EXPECTED_TAG,
-    EXPECTED_TAG_SHA,
-    createSourceArchive,
-    sha256File,
-  } = loadSourceArchive();
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'suno-source-archive-'));
-  const first = await createSourceArchive({ repoRoot, outputDir: path.join(tempRoot, 'first') });
-  const second = await createSourceArchive({ repoRoot, outputDir: path.join(tempRoot, 'second') });
-
-  assert.equal(path.basename(first.archivePath), ARCHIVE_FILENAME);
-  assert.equal(first.sha256, second.sha256);
-  assert.equal(first.sha256, sha256File(first.archivePath));
-  assert.equal(
-    fs.readFileSync(first.checksumPath, 'utf8'),
-    `${first.sha256}  ${ARCHIVE_FILENAME}\n`,
-  );
-
-  const entries = execFileSync('unzip', ['-Z1', first.archivePath], { encoding: 'utf8' })
-    .trim()
-    .split('\n');
-  assert.ok(entries.includes('get-suno-lyric-2.0.9/package.json'));
-  assert.ok(entries.includes('get-suno-lyric-2.0.9/LICENSE-MIT.txt'));
-  assert.ok(entries.includes('get-suno-lyric-2.0.9/SOURCE_PROVENANCE.txt'));
-  assert.ok(!entries.some((entry) => entry.includes('/.git/')));
-
-  const manifest = JSON.parse(fs.readFileSync(first.manifestPath, 'utf8'));
-  assert.equal(manifest.tag, EXPECTED_TAG);
-  assert.equal(manifest.commit, EXPECTED_TAG_SHA);
-  assert.equal(manifest.sha256, first.sha256);
-  assert.equal(
-    manifest.archiveUrl,
-    'https://downloads.zhanghe.dev/get-suno-lyric/v2.0.9/get-suno-lyric-2.0.9-source.zip',
-  );
-});
+t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
 ```
 
-- [ ] **Step 3: Run the test and confirm an assertion fails before implementation**
-
-Run:
+Run against the pre-correction implementation:
 
 ```bash
-node --test scripts/test-source-archive.mjs
+pnpm test:source-archive
 ```
 
-Expected: non-zero exit with the assertion message `scripts/source-archive.js must exist`; the test process itself loads correctly.
+Expected RED: the tag-retarget fixture includes the divergent file and changed blob bytes, while central-directory entries report DEFLATE method `8`, not STORE method `0`.
 
-- [ ] **Step 4: Implement the deterministic archive library**
+- [ ] **Step 3: Implement immutable stored archive generation**
 
-Create `scripts/source-archive.js`:
+`assertExpectedTag` must use `git rev-parse --verify --quiet refs/tags/v2.0.9^{commit}` exactly once per archive. Pass the returned SHA to the single `git ls-tree` call and to every `git show` call. Never pass the short tag name to an archive read.
 
-```js
-const crypto = require('node:crypto');
-const fs = require('node:fs');
-const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+Construct `ZipArchive` with `{ store: true }`, append all Git-tree files first in tree order, then append the two metadata files. Build manifest URLs only from the exported canonical constants.
 
-const EXPECTED_TAG = 'v2.0.9';
-const EXPECTED_TAG_SHA = '98813c64624c4b98c7c80cdd63dd337e2198e8d9';
-const ARCHIVE_FILENAME = 'get-suno-lyric-2.0.9-source.zip';
-const ARCHIVE_PREFIX = 'get-suno-lyric-2.0.9';
-const ZIP_ENTRY_DATE = new Date('2000-01-01T00:00:00Z');
-const PUBLIC_BASE_URL = 'https://downloads.zhanghe.dev/get-suno-lyric/v2.0.9';
+- [ ] **Step 4: Add the CLI, package commands, and ignored output**
 
-function git(repoRoot, args, encoding = 'utf8') {
-  return execFileSync('git', args, {
-    cwd: repoRoot,
-    encoding,
-    maxBuffer: 64 * 1024 * 1024,
-  });
-}
-
-function assertExpectedTag(repoRoot, expectedSha = EXPECTED_TAG_SHA) {
-  const actualSha = git(repoRoot, ['rev-parse', `${EXPECTED_TAG}^{commit}`]).trim();
-  if (actualSha !== expectedSha) {
-    throw new Error(
-      `${EXPECTED_TAG} resolves to ${actualSha}, which does not match the approved historical commit ${expectedSha}`,
-    );
-  }
-  return actualSha;
-}
-
-function listTagFiles(repoRoot) {
-  return git(repoRoot, ['ls-tree', '-r', '--name-only', EXPECTED_TAG])
-    .split('\n')
-    .filter(Boolean)
-    .sort();
-}
-
-function readTagFile(repoRoot, filePath) {
-  return git(repoRoot, ['show', `${EXPECTED_TAG}:${filePath}`], null);
-}
-
-function buildProvenance() {
-  return [
-    'Suno Lyric Downloader historical source archive',
-    '',
-    `Git tag: ${EXPECTED_TAG}`,
-    `Git commit: ${EXPECTED_TAG_SHA}`,
-    '',
-    'Every project file in this archive was read from the immutable tagged Git tree above.',
-    'LICENSE-MIT.txt and SOURCE_PROVENANCE.txt were added to this archive outside the tagged Git tree.',
-    'Adding those archival metadata files does not move or rewrite the tag.',
-    'The main repository may later become private; that does not revoke permissions already received for historical source.',
-    '',
-  ].join('\n');
-}
-
-function sha256File(filePath) {
-  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
-}
-
-async function createSourceArchive({
-  repoRoot = path.resolve(__dirname, '..'),
-  outputDir = path.resolve(__dirname, '../release-artifacts/get-suno-lyric/v2.0.9'),
-} = {}) {
-  const commit = assertExpectedTag(repoRoot);
-  fs.mkdirSync(outputDir, { recursive: true });
-
-  const archivePath = path.join(outputDir, ARCHIVE_FILENAME);
-  const checksumPath = `${archivePath}.sha256`;
-  const manifestPath = path.join(outputDir, 'source-archive-manifest.json');
-  const licensePath = path.join(__dirname, 'assets/MIT-LICENSE-2.0.9.txt');
-  const output = fs.createWriteStream(archivePath);
-  const { ZipArchive } = await import('archiver');
-  const archive = new ZipArchive({ zlib: { level: 9 } });
-  const closed = new Promise((resolve, reject) => {
-    output.on('close', resolve);
-    output.on('error', reject);
-    archive.on('error', reject);
-  });
-
-  archive.pipe(output);
-  for (const filePath of listTagFiles(repoRoot)) {
-    archive.append(readTagFile(repoRoot, filePath), {
-      name: `${ARCHIVE_PREFIX}/${filePath}`,
-      date: ZIP_ENTRY_DATE,
-      mode: 0o644,
-    });
-  }
-  archive.append(fs.readFileSync(licensePath), {
-    name: `${ARCHIVE_PREFIX}/LICENSE-MIT.txt`,
-    date: ZIP_ENTRY_DATE,
-    mode: 0o644,
-  });
-  archive.append(buildProvenance(), {
-    name: `${ARCHIVE_PREFIX}/SOURCE_PROVENANCE.txt`,
-    date: ZIP_ENTRY_DATE,
-    mode: 0o644,
-  });
-
-  await archive.finalize();
-  await closed;
-
-  const sha256 = sha256File(archivePath);
-  fs.writeFileSync(checksumPath, `${sha256}  ${ARCHIVE_FILENAME}\n`);
-  fs.writeFileSync(
-    manifestPath,
-    `${JSON.stringify({
-      product: 'Suno Lyric Downloader',
-      tag: EXPECTED_TAG,
-      commit,
-      archiveFilename: ARCHIVE_FILENAME,
-      sha256,
-      archiveUrl: `${PUBLIC_BASE_URL}/${ARCHIVE_FILENAME}`,
-      checksumUrl: `${PUBLIC_BASE_URL}/${ARCHIVE_FILENAME}.sha256`,
-    }, null, 2)}\n`,
-  );
-
-  return { archivePath, checksumPath, manifestPath, sha256 };
-}
-
-module.exports = {
-  ARCHIVE_FILENAME,
-  EXPECTED_TAG,
-  EXPECTED_TAG_SHA,
-  assertExpectedTag,
-  buildProvenance,
-  createSourceArchive,
-  sha256File,
-};
-```
-
-- [ ] **Step 5: Add the CLI, package commands, and ignored output**
-
-Create `scripts/package-source-archive.js`:
-
-```js
-const path = require('node:path');
-const { createSourceArchive } = require('./source-archive.js');
-
-async function main() {
-  const outputDir = process.argv[2]
-    ? path.resolve(process.argv[2])
-    : path.resolve(__dirname, '../release-artifacts/get-suno-lyric/v2.0.9');
-  const result = await createSourceArchive({ outputDir });
-  console.log(`Archive: ${result.archivePath}`);
-  console.log(`Checksum: ${result.checksumPath}`);
-  console.log(`Manifest: ${result.manifestPath}`);
-  console.log(`SHA-256: ${result.sha256}`);
-}
-
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
-```
-
-Add these scripts to `package.json`, and replace the placeholder aggregate test:
+Keep `scripts/package-source-archive.js` as a thin CLI around `createSourceArchive`. Configure:
 
 ```json
-"test": "pnpm test:release-notes && pnpm test:release-workflow && pnpm test:lyric-timing && pnpm test:source-archive",
 "test:source-archive": "node --test scripts/test-source-archive.mjs",
 "source:archive": "node scripts/package-source-archive.js"
 ```
 
-Append to `.gitignore`:
+Ignore `release-artifacts/`.
 
-```text
-release-artifacts/
-```
-
-- [ ] **Step 6: Run the focused and aggregate tests**
-
-Run:
+- [ ] **Step 5: Run focused and aggregate verification**
 
 ```bash
 pnpm test:source-archive
 pnpm test
+pnpm tsc
+pnpm build
 ```
 
-Expected: every subtest passes and both commands exit `0`.
-
-- [ ] **Step 7: Generate and independently inspect the artifacts**
-
-Run:
+- [ ] **Step 6: Generate and independently inspect the artifacts**
 
 ```bash
 pnpm source:archive
-(cd release-artifacts/get-suno-lyric/v2.0.9 && shasum -a 256 -c get-suno-lyric-2.0.9-source.zip.sha256)
-unzip -Z1 release-artifacts/get-suno-lyric/v2.0.9/get-suno-lyric-2.0.9-source.zip | rg 'package.json|LICENSE-MIT.txt|SOURCE_PROVENANCE.txt'
-git rev-parse 'v2.0.9^{commit}'
+cd release-artifacts/get-suno-lyric/v2.0.9
+shasum -a 256 -c get-suno-lyric-2.0.9-source.zip.sha256
+unzip -Z1 get-suno-lyric-2.0.9-source.zip
+git -C ../../.. rev-parse --verify 'refs/tags/v2.0.9^{commit}'
 ```
 
-Expected:
-
-- Checksum reports `OK`.
-- The three required paths are listed.
-- Git prints exactly `98813c64624c4b98c7c80cdd63dd337e2198e8d9`.
-
-- [ ] **Step 8: Commit the archive tooling**
-
-```bash
-git add .gitignore package.json scripts/assets/MIT-LICENSE-2.0.9.txt scripts/source-archive.js scripts/package-source-archive.js scripts/test-source-archive.mjs
-git commit -m "build: add reproducible historical source archive"
-```
+Expected: the checksum reports `OK`; the complete entry list matches the validated commit tree plus the two metadata files; Git prints the approved commit SHA; the archive SHA is `055c7d066cf3a5b6de8389ce753af7547999fc319212cee76dde1eed921c3eb5`. Record that deterministic STORE-mode digest in the implementation report.
 
 ---
 
@@ -422,64 +157,24 @@ git commit -m "build: add reproducible historical source archive"
 
 **Interfaces:**
 
-- Consumes: the stable archive and cutoff URLs defined by Task 1.
-- Produces: `SOURCE_TRANSITION.md` as the canonical public message, plus `test:source-transition-docs` as the copy contract used before publication.
+- Consume the canonical historical tag, SHA, archive URL, checksum URL, manifest URL, and cutoff URL exported by Task 1.
+- Produce `SOURCE_TRANSITION.md` as the canonical public message and `test:source-transition-docs` as the section-scoped bilingual publication contract.
 
-- [ ] **Step 1: Write the failing documentation contract test**
+- [ ] **Step 1: Write the failing bilingual documentation contract**
 
-Create `scripts/test-source-transition-docs.mjs`:
+Tests must slice and assert the English and Chinese announcement sections independently. Each section must cover current free LRC/SRT/timing repair, future/conditional Creator Pro status, future privacy architecture, non-revocation of historical permissions/copies/forks, exact tag and SHA, all four canonical URLs, and the exact 1,209,600-second notice duration.
 
-```js
-import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import test from 'node:test';
-import { fileURLToPath } from 'node:url';
+Separately assert the English and Chinese README notices, both support statements, and the historical license boundary. Reject the obsolete present-tense Creator Pro/privacy sentences and all calendar-day duration wording.
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (file) => {
-  const filePath = path.join(repoRoot, file);
-  assert.equal(fs.existsSync(filePath), true, `${file} must exist`);
-  return fs.readFileSync(filePath, 'utf8');
-};
-
-test('transition announcement preserves the approved trust promises', () => {
-  const announcement = read('SOURCE_TRANSITION.md');
-  for (const requiredText of [
-    '2.0.9 is the final open-source product release',
-    '3.0.0 and later are proprietary',
-    'LRC download, SRT download, and automatic timing repair remain free',
-    'optional one-time purchase',
-    'same Chrome Web Store extension',
-    'Song data, lyrics, audio, projects, and videos remain local',
-    'at least 14 full calendar days',
-    '98813c64624c4b98c7c80cdd63dd337e2198e8d9',
-    'https://downloads.zhanghe.dev/get-suno-lyric/v2.0.9/get-suno-lyric-2.0.9-source.zip',
-    'https://downloads.zhanghe.dev/get-suno-lyric/oss-source-cutoff.json',
-  ]) {
-    assert.ok(announcement.includes(requiredText), `missing: ${requiredText}`);
-  }
-  assert.doesNotMatch(announcement, /T[B]D|T[O]DO|coming soon|never open source/i);
-});
-
-test('readme links the durable transition notice and avoids retroactive claims', () => {
-  const readme = read('README.md');
-  assert.match(readme, /SOURCE_TRANSITION\.md/);
-  assert.doesNotMatch(readme, /historical forks are unauthorized/i);
-});
-```
-
-- [ ] **Step 2: Run the test and confirm the missing announcement failure**
-
-Run:
+Run before changing publication copy:
 
 ```bash
-node --test scripts/test-source-transition-docs.mjs
+pnpm test:source-transition-docs
 ```
 
-Expected: non-zero exit with the assertion message `SOURCE_TRANSITION.md must exist`; no uncaught filesystem error occurs.
+Expected RED: both announcement sections lack future/conditional wording, the Chinese README copy is not aligned, and the announcement contains the obsolete calendar-day duration.
 
-- [ ] **Step 3: Write the bilingual announcement**
+- [ ] **Step 2: Publish this exact bilingual announcement**
 
 Create `SOURCE_TRANSITION.md` exactly as follows:
 
@@ -488,21 +183,21 @@ Create `SOURCE_TRANSITION.md` exactly as follows:
 
 ## English
 
-Suno Lyric Downloader 2.0.9 is the final open-source product release. Extension version 3.0.0 and later are proprietary.
+Suno Lyric Downloader 2.0.9 is the final open-source product release. Extension version 3.0.0 and later will be proprietary.
 
 ### What stays free
 
 LRC download, SRT download, and automatic timing repair remain free. Existing users keep the same Chrome Web Store extension and continue receiving normal updates through the existing extension ID.
 
-Creator Pro is an optional one-time purchase. It adds creator workflow features without removing or degrading the free 2.0.9 capabilities.
+Creator Pro is planned as an optional one-time purchase. When released, it will add creator workflow features without removing or degrading the free 2.0.9 capabilities.
 
 ### Privacy
 
-Song data, lyrics, audio, projects, and videos remain local. Only checkout and license validation use developer-controlled services.
+When Creator Pro is released, song data, lyrics, audio, projects, and videos will remain local. Only checkout and license validation will use developer-controlled services.
 
 ### Historical source and notice period
 
-The repository remains public for at least 14 full calendar days after the annotated `source-transition-notice` tag is published. Immediately before privatization, the annotated `oss-source-cutoff` tag records the final public repository state.
+The repository remains public for at least 14 complete 24-hour periods (1,209,600 seconds) after the annotated `source-transition-notice` tag is published. Immediately before privatization, the annotated `oss-source-cutoff` tag records the final public repository state.
 
 All source made public through `oss-source-cutoff` keeps the permissions and representations under which it was published. Making the main repository private does not revoke or delete historical copies, forks, or permissions already received.
 
@@ -517,21 +212,21 @@ The final open-source product release is:
 
 ## 中文
 
-Suno Lyric Downloader 2.0.9 是最后一个开源产品版本。插件 3.0.0 及以后版本采用专有许可。
+Suno Lyric Downloader 2.0.9 是最后一个开源产品版本。插件 3.0.0 及以后版本将采用专有许可。
 
 ### 哪些功能继续免费
 
-LRC 下载、SRT 下载和现有自动时间轴修复将继续免费。现有用户继续使用同一个 Chrome 应用商店插件和原有插件 ID，并通过正常更新渠道获得后续版本。
+LRC 下载、SRT 下载和现有自动时间轴修复功能继续免费。现有用户继续使用同一个 Chrome 应用商店插件和原有插件 ID，并通过正常更新渠道获得后续版本。
 
-Creator Pro 是可选的一次性付费功能。它增加创作者工作流能力，但不会移除或降低 2.0.9 已有免费能力的质量。
+Creator Pro 计划作为可选的一次性付费功能推出。发布后，它将增加创作者工作流能力，但不会移除或降低 2.0.9 已有免费能力的质量。
 
 ### 隐私
 
-歌曲数据、歌词、音频、项目和视频都保留在本地。只有结账和许可证验证会使用开发者控制的服务。
+Creator Pro 发布后，歌曲数据、歌词、音频、项目和视频仍将保留在本地。只有结账和许可证验证会使用开发者控制的服务。
 
 ### 历史源码和公示期
 
-在带注释的 `source-transition-notice` 标签发布后，仓库将继续公开至少完整 14 个日历日。转为私有前，会用带注释的 `oss-source-cutoff` 标签记录最后的公开仓库状态。
+在带注释的 `source-transition-notice` 标签发布后，仓库将继续保持公开，直至至少连续完成 14 个 24 小时周期（共 1,209,600 秒）。转为私有前，会用带注释的 `oss-source-cutoff` 标签记录最后的公开仓库状态。
 
 截至 `oss-source-cutoff` 已公开的源码，继续保留其公开时已获得的许可和表述。主仓库转为私有不会撤销或删除历史副本、分叉仓库，或用户此前已经获得的许可。
 
@@ -545,29 +240,25 @@ Creator Pro 是可选的一次性付费功能。它增加创作者工作流能�
 - [最终公开源码截止记录](https://downloads.zhanghe.dev/get-suno-lyric/oss-source-cutoff.json)
 ```
 
-- [ ] **Step 4: Update README while the repository is still public**
+- [ ] **Step 3: Align README while the repository is still public**
 
-Immediately below `# Suno Lyric Downloader`, insert:
+Immediately below the title, use:
 
 ```md
 > **Source-model notice:** Version 2.0.9 is the final open-source product release. Existing download features remain free; version 3.0.0 and later will use a proprietary Freemium model. Read the [full transition announcement](SOURCE_TRANSITION.md).
 >
-> **源码模式变更说明：** 2.0.9 是最后一个开源产品版本。现有歌词下载功能将继续免费；3.0.0 及以后版本采用闭源 Freemium 模式。请阅读[完整迁移公告](SOURCE_TRANSITION.md)。
+> **源码模式变更说明：** 2.0.9 是最后一个开源产品版本。现有歌词下载功能继续免费；3.0.0 及以后版本将采用闭源 Freemium 模式。请阅读[完整迁移公告](SOURCE_TRANSITION.md)。
 ```
 
-Replace the English support sentence that currently calls the whole current product open source with:
+Use these support statements:
 
 ```md
-Suno Lyric Downloader 2.0.9 is the final open-source product release. The existing LRC, SRT, and automatic timing-repair features remain free, while Creator Pro is a future optional one-time purchase. See the [source-model transition](SOURCE_TRANSITION.md) for the historical source boundary.
+Suno Lyric Downloader 2.0.9 is the final open-source product release. The existing LRC, SRT, and automatic timing-repair features remain free, while Creator Pro is planned as an optional one-time purchase. See the [source-model transition](SOURCE_TRANSITION.md) for the historical source boundary.
+
+Suno Lyric Downloader 2.0.9 是最后一个开源产品版本。现有 LRC、SRT 和自动时间轴修复功能继续免费，Creator Pro 计划作为可选的一次性付费功能推出。历史源码边界请参阅[源码模式迁移说明](SOURCE_TRANSITION.md)。
 ```
 
-Replace the equivalent Chinese sentence with:
-
-```md
-Suno Lyric Downloader 2.0.9 是最后一个开源产品版本。现有 LRC、SRT 和自动时间轴修复功能将继续免费，Creator Pro 则是后续可选的一次性付费功能。历史源码边界请参阅[源码模式迁移说明](SOURCE_TRANSITION.md)。
-```
-
-Replace the final `## License` / `MIT` block with:
+Keep the historical license boundary exactly:
 
 ```md
 ## Historical Source License
@@ -575,34 +266,22 @@ Replace the final `## License` / `MIT` block with:
 Version 2.0.9 and the public source recorded by `oss-source-cutoff` remain available under the permissions and representations in effect when published. See [SOURCE_TRANSITION.md](SOURCE_TRANSITION.md) for the immutable tag, public archive, and transition details.
 ```
 
-- [ ] **Step 5: Add the documentation test to the aggregate suite**
+- [ ] **Step 4: Add and run the documentation test**
 
-Add to `package.json`:
+Configure:
 
 ```json
 "test:source-transition-docs": "node --test scripts/test-source-transition-docs.mjs"
 ```
 
-Append `&& pnpm test:source-transition-docs` to the existing `test` command.
-
-- [ ] **Step 6: Run tests and scan for misleading copy**
-
-Run:
+Then run:
 
 ```bash
 pnpm test:source-transition-docs
 pnpm test
-! rg -n "free, open source|免费、开源|^MIT$|T[B]D|T[O]DO" README.md SOURCE_TRANSITION.md
 ```
 
-Expected: tests pass; `rg` returns no obsolete present-tense product claim and no placeholder text.
-
-- [ ] **Step 7: Commit the public communication**
-
-```bash
-git add README.md SOURCE_TRANSITION.md package.json scripts/test-source-transition-docs.mjs
-git commit -m "docs: announce source model transition"
-```
+Expected: every section-scoped contract passes and publication copy contains no obsolete present-tense Creator Pro/privacy sentence, placeholder, or calendar-day duration.
 
 ---
 
@@ -617,225 +296,48 @@ git commit -m "docs: announce source model transition"
 
 **Interfaces:**
 
-- Consumes: annotated Git tag `oss-source-cutoff` and a clean working tree.
-- Produces: `readCutoff(repoRoot, { requireClean? }?) -> CutoffRecord`, `writeCutoffRecord({ repoRoot, outputPath }) -> CutoffRecord`, `renderHistoricalSourceNotice(record) -> string`, the public `oss-source-cutoff.json` artifact, and a generated `NOTICE-HISTORICAL-SOURCE.md` with the real SHA.
+- Consume a clean worktree, the annotated `refs/tags/oss-source-cutoff` tag, and Task 1's validated `refs/tags/v2.0.9` record and canonical URLs.
+- Produce `readCutoff(repoRoot, { requireClean? }?)`, `writeCutoffRecord({ repoRoot, outputPath })`, `renderHistoricalSourceNotice(record)`, the public cutoff JSON, and the generated historical notice.
 
-- [ ] **Step 1: Write failing cutoff-record tests**
+- [ ] **Step 1: Write failing cutoff contracts in temporary repositories**
 
-Create `scripts/test-source-cutoff-record.mjs`:
+Every success fixture must fetch the real approved historical tag into a temporary repository before creating a temporary cutoff commit and tag. Register every temporary repository and JSON directory with recursive `t.after()` cleanup.
 
-```js
-import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import test from 'node:test';
-import { execFileSync } from 'node:child_process';
-import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
+Cover:
 
-const require = createRequire(import.meta.url);
-const modulePath = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  'write-source-cutoff-record.js',
-);
+- the complete canonical cutoff record;
+- exact notice URLs and rendering from `record.historicalRelease` and `record.sourceArchive`;
+- concise domain errors for missing and lightweight cutoff tags;
+- rejection when the historical tag is missing or resolves to the wrong commit;
+- dirty-worktree rejection;
+- refusal to replace a record for a different cutoff commit.
 
-function loadCutoffModule() {
-  assert.equal(
-    fs.existsSync(modulePath),
-    true,
-    'scripts/write-source-cutoff-record.js must exist',
-  );
-  return require(modulePath);
-}
-
-function git(repoRoot, args) {
-  return execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' }).trim();
-}
-
-function makeRepo({ annotated = true } = {}) {
-  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'suno-cutoff-test-'));
-  git(repoRoot, ['init']);
-  git(repoRoot, ['config', 'user.name', 'Source Transition Test']);
-  git(repoRoot, ['config', 'user.email', 'source-transition@example.test']);
-  fs.writeFileSync(path.join(repoRoot, 'file.txt'), 'public source\n');
-  git(repoRoot, ['add', 'file.txt']);
-  git(repoRoot, ['commit', '-m', 'test public source']);
-  const tagArgs = annotated
-    ? ['tag', '-a', 'oss-source-cutoff', '-m', 'test cutoff']
-    : ['tag', 'oss-source-cutoff'];
-  git(repoRoot, tagArgs);
-  return repoRoot;
-}
-
-test('reads an annotated cutoff and renders the exact historical notice', () => {
-  const {
-    readCutoff,
-    renderHistoricalSourceNotice,
-    writeCutoffRecord,
-  } = loadCutoffModule();
-  const repoRoot = makeRepo();
-  const record = readCutoff(repoRoot);
-  const expectedCommit = git(repoRoot, ['rev-parse', 'oss-source-cutoff^{commit}']);
-  const expectedDate = git(repoRoot, [
-    'for-each-ref',
-    '--format=%(taggerdate:iso-strict)',
-    'refs/tags/oss-source-cutoff',
-  ]);
-  assert.equal(record.commit, expectedCommit);
-  assert.equal(record.taggedAt, expectedDate);
-
-  const notice = renderHistoricalSourceNotice(record);
-  assert.ok(notice.includes(expectedCommit));
-  assert.ok(notice.includes('98813c64624c4b98c7c80cdd63dd337e2198e8d9'));
-  assert.match(notice, /does not revoke/i);
-
-  const outputPath = path.join(os.tmpdir(), `${expectedCommit}-cutoff.json`);
-  const written = writeCutoffRecord({ repoRoot, outputPath });
-  assert.deepEqual(JSON.parse(fs.readFileSync(outputPath, 'utf8')), written);
-});
-
-test('rejects a lightweight cutoff tag', () => {
-  const { readCutoff } = loadCutoffModule();
-  assert.throws(() => readCutoff(makeRepo({ annotated: false })), /must be an annotated tag/);
-});
-
-test('rejects a dirty working tree', () => {
-  const { readCutoff } = loadCutoffModule();
-  const repoRoot = makeRepo();
-  fs.writeFileSync(path.join(repoRoot, 'uncommitted.txt'), 'dirty\n');
-  assert.throws(() => readCutoff(repoRoot), /working tree must be clean/);
-});
-
-test('refuses to replace a record for another commit', () => {
-  const { writeCutoffRecord } = loadCutoffModule();
-  const repoRoot = makeRepo();
-  const outputPath = path.join(os.tmpdir(), `${path.basename(repoRoot)}-cutoff.json`);
-  fs.writeFileSync(outputPath, `${JSON.stringify({ commit: '0'.repeat(40) })}\n`);
-  assert.throws(
-    () => writeCutoffRecord({ repoRoot, outputPath }),
-    /existing cutoff record points to a different commit/,
-  );
-});
-```
-
-- [ ] **Step 2: Run the failing test**
+Run before implementation:
 
 ```bash
-node --test scripts/test-source-cutoff-record.mjs
+pnpm test:source-cutoff
 ```
 
-Expected: non-zero exit with the assertion message `scripts/write-source-cutoff-record.js must exist`; the test file itself executes normally.
+Expected RED: the renderer ignores fixture historical values, a missing cutoff leaks raw Git output, and missing or mismatched historical tags are accepted.
 
-- [ ] **Step 3: Implement the cutoff-record library and CLI**
+- [ ] **Step 2: Validate both immutable source boundaries**
 
-Create `scripts/write-source-cutoff-record.js` with these exported functions:
+`readCutoff` must:
 
-```js
-const fs = require('node:fs');
-const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+1. inspect the unpeeled object at `refs/tags/oss-source-cutoff` and return `oss-source-cutoff tag is missing` when absent;
+2. require that object type to be `tag`, otherwise return `oss-source-cutoff must be an annotated tag`;
+3. enforce a clean worktree when requested;
+4. call Task 1's `assertExpectedTag(repoRoot)` and use its returned commit in `historicalRelease`;
+5. peel the cutoff with `refs/tags/oss-source-cutoff^{commit}` and read its tagger timestamp from the fully qualified ref;
+6. populate `sourceArchive` from `SOURCE_ARCHIVE_URL`.
 
-const CUTOFF_TAG = 'oss-source-cutoff';
+Preserve the canonical JSON shape: `tag`, `commit`, `taggedAt`, `historicalRelease: { tag, commit }`, and `sourceArchive`.
 
-function git(repoRoot, args) {
-  return execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' }).trim();
-}
+Render the historical tag, historical commit, and archive URL from that validated record. Render checksum and cutoff URLs from `SOURCE_ARCHIVE_CHECKSUM_URL` and `SOURCE_CUTOFF_URL`; do not duplicate literals.
 
-function readCutoff(repoRoot, { requireClean = true } = {}) {
-  if (git(repoRoot, ['cat-file', '-t', `refs/tags/${CUTOFF_TAG}`]) !== 'tag') {
-    throw new Error(`${CUTOFF_TAG} must be an annotated tag`);
-  }
-  if (requireClean && git(repoRoot, ['status', '--porcelain'])) {
-    throw new Error('working tree must be clean before recording the cutoff');
-  }
-  return {
-    tag: CUTOFF_TAG,
-    commit: git(repoRoot, ['rev-parse', `${CUTOFF_TAG}^{commit}`]),
-    taggedAt: git(repoRoot, [
-      'for-each-ref',
-      '--format=%(taggerdate:iso-strict)',
-      `refs/tags/${CUTOFF_TAG}`,
-    ]),
-    historicalRelease: {
-      tag: 'v2.0.9',
-      commit: '98813c64624c4b98c7c80cdd63dd337e2198e8d9',
-    },
-    sourceArchive: 'https://downloads.zhanghe.dev/get-suno-lyric/v2.0.9/get-suno-lyric-2.0.9-source.zip',
-  };
-}
+- [ ] **Step 3: Add and run the package commands**
 
-function writeCutoffRecord({ repoRoot, outputPath }) {
-  const record = readCutoff(repoRoot);
-  if (fs.existsSync(outputPath)) {
-    const existing = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
-    if (existing.commit !== record.commit) {
-      throw new Error('existing cutoff record points to a different commit');
-    }
-  }
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, `${JSON.stringify(record, null, 2)}\n`);
-  return record;
-}
-
-function renderHistoricalSourceNotice(record) {
-  return `# Historical Source Notice
-
-Suno Lyric Downloader 2.0.9 is the final open-source product release.
-
-- Historical release tag: \`v2.0.9\`
-- Historical release commit: \`98813c64624c4b98c7c80cdd63dd337e2198e8d9\`
-- Final public-source tag: \`${record.tag}\`
-- Final public-source cutoff: \`${record.commit}\`
-- Historical source archive: <https://downloads.zhanghe.dev/get-suno-lyric/v2.0.9/get-suno-lyric-2.0.9-source.zip>
-- Archive checksum: <https://downloads.zhanghe.dev/get-suno-lyric/v2.0.9/get-suno-lyric-2.0.9-source.zip.sha256>
-- Public cutoff record: <https://downloads.zhanghe.dev/get-suno-lyric/oss-source-cutoff.json>
-
-Extension version 3.0.0 and later are distributed under the proprietary terms in \`LICENSE\`.
-This change does not revoke, delete, or retroactively alter permissions already received for historical public source, copies, or forks.
-Third-party software remains governed by its own license terms.
-`;
-}
-
-if (require.main === module) {
-  const repoRoot = path.resolve(__dirname, '..');
-  const outputPath = path.resolve(
-    __dirname,
-    '../release-artifacts/get-suno-lyric/oss-source-cutoff.json',
-  );
-  const record = writeCutoffRecord({ repoRoot, outputPath });
-  console.log(`Cutoff: ${record.commit}`);
-  console.log(`Record: ${outputPath}`);
-}
-
-module.exports = {
-  CUTOFF_TAG,
-  readCutoff,
-  renderHistoricalSourceNotice,
-  writeCutoffRecord,
-};
-```
-
-Create `scripts/write-historical-source-notice.js`:
-
-```js
-const fs = require('node:fs');
-const path = require('node:path');
-const {
-  readCutoff,
-  renderHistoricalSourceNotice,
-} = require('./write-source-cutoff-record.js');
-
-const repoRoot = path.resolve(__dirname, '..');
-const outputPath = path.join(repoRoot, 'NOTICE-HISTORICAL-SOURCE.md');
-const record = readCutoff(repoRoot, { requireClean: false });
-fs.writeFileSync(outputPath, renderHistoricalSourceNotice(record));
-console.log(`Historical source notice: ${outputPath}`);
-```
-
-- [ ] **Step 4: Add and run the package command**
-
-Add:
+Configure:
 
 ```json
 "source:cutoff-record": "node scripts/write-source-cutoff-record.js",
@@ -843,21 +345,14 @@ Add:
 "test:source-cutoff": "node --test scripts/test-source-cutoff-record.mjs"
 ```
 
-Append `&& pnpm test:source-cutoff` to `test`, then run:
+Then run:
 
 ```bash
 pnpm test:source-cutoff
 pnpm test
 ```
 
-Expected: all tests pass. Do not run `pnpm source:cutoff-record` yet because the real cutoff tag must not exist before the notice period ends.
-
-- [ ] **Step 5: Commit the cutoff tooling**
-
-```bash
-git add package.json scripts/write-source-cutoff-record.js scripts/write-historical-source-notice.js scripts/test-source-cutoff-record.mjs
-git commit -m "build: add verifiable public source cutoff record"
-```
+Expected: all tests pass. Do not run either source generator against the real repository before the real annotated cutoff tag exists.
 
 ---
 
@@ -866,7 +361,7 @@ git commit -m "build: add verifiable public source cutoff record"
 **Interfaces:**
 
 - Consumes: Task 1 artifacts and Task 2 announcement from a clean, reviewed branch.
-- Produces: four public R2 objects and annotated tag `source-transition-notice`, whose tagger timestamp is the sole start time for the 14-day gate.
+- Produces: four public R2 objects and annotated tag `source-transition-notice`, whose tagger timestamp is the sole start time for the 1,209,600-second gate.
 
 **External-state gate:** Stop and obtain explicit current-session approval before the first R2, DNS, Git push, or tag command in this task.
 
@@ -946,16 +441,16 @@ Push only after the archive URLs are live and reviewed:
 git fetch origin main
 git merge-base --is-ancestor origin/main HEAD
 git push origin HEAD:main
-git tag -a source-transition-notice -m "Start 14-day public notice for the 3.0.0 source-model transition"
+git tag -a source-transition-notice -m "Start public notice for the 3.0.0 source-model transition; minimum 1,209,600 seconds"
 git push origin source-transition-notice
 git show --no-patch --format=fuller source-transition-notice
 ```
 
-Expected: an annotated tag whose tagger date is visible. Record that timestamp in the operator log; it starts the 14-day clock.
+Expected: an annotated tag whose tagger date is visible. Record that timestamp in the operator log; it starts the 1,209,600-second clock.
 
 - [ ] **Step 7: Stop for the full notice period**
 
-Do not use a blocking sleep command. End the implementation session and report the earliest eligible cutoff timestamp, calculated as the annotated tag's tagger timestamp plus 14 complete 24-hour periods.
+Do not use a blocking sleep command. End the implementation session and report the earliest eligible cutoff timestamp, calculated as the annotated tag's tagger timestamp plus 14 complete 24-hour periods (1,209,600 seconds).
 
 ---
 
@@ -991,7 +486,7 @@ Expected:
 Calculate elapsed time from the tag itself; require at least `1209600` seconds:
 
 ```bash
-node -e "const {execFileSync}=require('node:child_process'); const tagged=Number(execFileSync('git',['for-each-ref','--format=%(taggerdate:unix)','refs/tags/source-transition-notice'],{encoding:'utf8'}).trim()); const elapsed=Math.floor(Date.now()/1000)-tagged; if(elapsed<1209600){throw new Error('14-day notice period has not completed')} console.log(elapsed)"
+node -e "const {execFileSync}=require('node:child_process'); const tagged=Number(execFileSync('git',['for-each-ref','--format=%(taggerdate:unix)','refs/tags/source-transition-notice'],{encoding:'utf8'}).trim()); const elapsed=Math.floor(Date.now()/1000)-tagged; if(elapsed<1209600){throw new Error('1,209,600-second notice period has not completed')} console.log(elapsed)"
 ```
 
 - [ ] **Step 2: Freeze and tag the final public commit**
@@ -1529,7 +1024,7 @@ Do not upload `3.0.0` to Chrome Web Store. This boundary build contains no Creat
 - Immutable `v2.0.9` SHA and non-retroactivity: enforced by tests, provenance, and public notice.
 - Stable public archive, MIT text, provenance, and SHA-256: covered by Tasks 1 and 4.
 - Public `oss-source-cutoff` SHA: covered by Tasks 3 and 5.
-- Minimum 14-day notice: enforced by annotated tag and elapsed-time gate in Tasks 4–5.
+- Minimum notice of 14 complete 24-hour periods (1,209,600 seconds): enforced by annotated tag and elapsed-time gate in Tasks 4–5.
 - Private repository and same Git history: covered by Task 5; no new repository is created.
 - Proprietary `3.0.0`, `private`, `UNLICENSED`, reviewed EULA, historical notice, and third-party notices: covered by Task 6.
 - Current free features and same extension ID: explicitly preserved; no manifest identity or permission changes are allowed.
