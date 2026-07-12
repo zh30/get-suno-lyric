@@ -1,5 +1,9 @@
 # Suno Lyric Downloader
 
+> **Source-model notice:** Version 2.0.9 is the final open-source product release. Existing download features remain free; version 3.0.0 and later will use a proprietary Freemium model. Read the [full transition announcement](SOURCE_TRANSITION.md).
+>
+> **源码模式变更说明：** 2.0.9 是最后一个开源产品版本。现有歌词下载功能将继续免费；3.0.0 及以后版本采用闭源 Freemium 模式。请阅读[完整迁移公告](SOURCE_TRANSITION.md)。
+
 Download synchronized lyrics from Suno song pages as `LRC` or `SRT` files.
 
 **Language**
@@ -131,7 +135,7 @@ No. The extension uses your existing Suno session in the browser. If you are not
 
 ### Support the Project
 
-Suno Lyric Downloader is free, open source, and maintained in my spare time. If this extension saves you time or becomes part of your workflow, you can support its ongoing development through [GitHub Sponsors](https://github.com/sponsors/zh30).
+Suno Lyric Downloader 2.0.9 is the final open-source product release. The existing LRC, SRT, and automatic timing-repair features remain free, while Creator Pro is a future optional one-time purchase. See the [source-model transition](SOURCE_TRANSITION.md) for the historical source boundary.
 
 Sponsorship is optional, but it helps me keep the extension updated as Suno changes, fix issues faster, and continue improving the user experience.
 
@@ -286,7 +290,7 @@ abc123-lyrics-suno-歌词下载器.srt
 
 ### 赞助支持
 
-Suno Lyric Downloader 是一个免费、开源，并由我长期维护的项目。如果这个插件节省了你的时间，或者已经成为你工作流的一部分，欢迎通过 [GitHub Sponsors](https://github.com/sponsors/zh30) 支持我继续维护它。
+Suno Lyric Downloader 2.0.9 是最后一个开源产品版本。现有 LRC、SRT 和自动时间轴修复功能将继续免费，Creator Pro 则是后续可选的一次性付费功能。历史源码边界请参阅[源码模式迁移说明](SOURCE_TRANSITION.md)。
 
 赞助完全自愿，但它能帮助我在 Suno 页面或接口变化时更快适配，持续修复问题，并继续优化使用体验。
 
@@ -317,6 +321,6 @@ pnpm build
 
 然后到 `chrome://extensions/` 中刷新扩展。
 
-## License
+## Historical Source License
 
-MIT
+Version 2.0.9 and the public source recorded by `oss-source-cutoff` remain available under the permissions and representations in effect when published. See [SOURCE_TRANSITION.md](SOURCE_TRANSITION.md) for the immutable tag, public archive, and transition details.

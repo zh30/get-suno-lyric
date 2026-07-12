@@ -4,11 +4,12 @@
   "description": "A Chrome browser extension that downloads synchronized lyrics from Suno.com in LRC or SRT formats.",
   "main": "index.js",
   "scripts": {
-    "test": "pnpm test:release-notes && pnpm test:release-workflow && pnpm test:lyric-timing && pnpm test:source-archive",
+    "test": "pnpm test:release-notes && pnpm test:release-workflow && pnpm test:lyric-timing && pnpm test:source-archive && pnpm test:source-transition-docs",
     "test:release-notes": "node --test scripts/test-release-notes.mjs",
     "test:release-workflow": "node --test scripts/test-release-workflow.mjs",
     "test:lyric-timing": "node --test scripts/test-lyric-timing.mjs",
     "test:source-archive": "node --test scripts/test-source-archive.mjs",
+    "test:source-transition-docs": "node --test scripts/test-source-transition-docs.mjs",
     "tsc": "tsc",
     "dev": "rspack build --watch --mode development",
     "build": "rspack build --mode production",
