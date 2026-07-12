@@ -391,7 +391,7 @@ Run:
 
 ```bash
 pnpm source:archive
-shasum -a 256 -c release-artifacts/get-suno-lyric/v2.0.9/get-suno-lyric-2.0.9-source.zip.sha256
+(cd release-artifacts/get-suno-lyric/v2.0.9 && shasum -a 256 -c get-suno-lyric-2.0.9-source.zip.sha256)
 unzip -Z1 release-artifacts/get-suno-lyric/v2.0.9/get-suno-lyric-2.0.9-source.zip | rg 'package.json|LICENSE-MIT.txt|SOURCE_PROVENANCE.txt'
 git rev-parse 'v2.0.9^{commit}'
 ```
